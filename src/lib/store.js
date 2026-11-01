@@ -233,11 +233,12 @@ async function useSession(s) {
 
 function afterSignIn(user) {
   const p = profile.peek();
+  if (!p) return; // offline on a new device: try again next launch
   const patch = {};
   const tz = deviceTimezone();
-  if (!p || p.timezone !== tz) patch.timezone = tz;
+  if (p.timezone !== tz) patch.timezone = tz;
   const name = user.user_metadata?.display_name;
-  if (name && (!p || !p.display_name)) patch.display_name = name;
+  if (name && !p.display_name) patch.display_name = name;
   if (Object.keys(patch).length) updateProfile(patch);
   refreshPush(user.id).catch(() => {});
 }
@@ -291,10 +292,12 @@ export async function deleteAccount() {
 // ---------------------------------------------------------------- actions
 
 export function updateProfile(patch) {
-  const prev = profile.peek() || { id: uid(), settings: {}, stats: {} };
-  const row = { ...prev, ...patch, id: prev.id || uid() };
-  profile.value = row;
-  sync.enqueue('profiles', row);
+  const prev = profile.peek();
+  const row = { ...(prev || {}), ...patch, id: prev?.id || uid() };
+  profile.value = normProfile(row);
+  // Without the cloud copy yet (first sign-in while offline), send only what changed so
+  // nothing already saved on the server gets overwritten with defaults.
+  sync.enqueue('profiles', prev ? row : { id: row.id, ...patch });
 }
 
 export const updateSettings = (patch) => updateProfile({ settings: { ...settings.peek(), ...patch } });
