@@ -1,0 +1,25 @@
+{
+  "name": "keep-it-lit",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Daily goals, per-goal streaks, awards and reminders. A Home Screen web app for iPhone.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.4",
+    "@supabase/supabase-js": "^2.118.0",
+    "preact": "^11.1.1"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "sharp": "^0.35.5",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

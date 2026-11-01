@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "Keep It Lit",
+  "short_name": "Keep It Lit",
+  "description": "Daily goals, per-goal streaks, awards and reminders.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#110C0B",
+  "theme_color": "#110C0B",
+  "categories": ["health", "lifestyle", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

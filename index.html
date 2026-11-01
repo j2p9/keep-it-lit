@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Keep It Lit</title>
+    <meta name="description" content="Daily goals, per-goal streaks, awards and reminders." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Keep It Lit" />
+    <meta name="theme-color" content="#110C0B" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+    <script>
+      // Paint the saved theme before anything loads, so there's no flash on launch.
+      (function () {
+        var mode = 'dark';
+        try {
+          var pref = localStorage.getItem('kil:theme') || 'auto';
+          mode = pref === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : pref;
+        } catch (e) {}
+        document.documentElement.setAttribute('data-theme', mode);
+        document.documentElement.style.background = mode === 'light' ? '#F8F2ED' : '#110C0B';
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
