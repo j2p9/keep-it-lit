@@ -1,6 +1,13 @@
 // Keep It Lit service worker: works offline, shows reminders, opens the app from a notification.
-const CACHE = 'kil-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/apple-touch-icon.png', './icons/favicon.svg'];
+const CACHE = 'kil-v2';
+const SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest?v=2',
+  './icons/icon-192.png?v=2',
+  './icons/apple-touch-icon.png?v=2',
+  './icons/favicon.svg?v=2',
+];
 
 // Cache the app's built files (named in index.html) and drop old versions.
 async function cacheApp(html) {

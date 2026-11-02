@@ -57,5 +57,5 @@ export function Stepper({ value, onChange, min = 0, max = 999, label }) {
 }
 
 export const Logo = ({ size = 88 }) => (
-  <img class="logo" src="./icons/icon-192.png" alt="" width={size} height={size} style={{ width: `${size}px`, height: `${size}px` }} />
+  <img class="logo" src="./icons/icon-192.png?v=2" alt="" width={size} height={size} style={{ width: `${size}px`, height: `${size}px` }} />
 );
