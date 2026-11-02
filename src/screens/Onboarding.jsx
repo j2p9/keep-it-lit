@@ -4,9 +4,9 @@ import { colorOf } from '../lib/colors.js';
 import { tick } from '../lib/haptics.js';
 import { isIOS, isStandalone } from '../lib/platform.js';
 import { enablePush, pushSupported } from '../lib/push.js';
-import { allGoals, completeOnboarding, createGoal, profile, session, uid, updateProfile } from '../lib/store.js';
+import { allGoals, completeOnboarding, createGoal, profile, session, settings, uid, updateProfile } from '../lib/store.js';
 import { cloudConfigured } from '../lib/supabase.js';
-import { TEMPLATES } from '../lib/templates.js';
+import { TEMPLATES, templateHint, withHealth } from '../lib/templates.js';
 import { onboardingActive, openOverlay, showToast } from '../lib/ui.js';
 
 function Dots({ step }) {
@@ -44,7 +44,7 @@ export function Onboarding() {
 
   const addPicked = () => {
     for (const i of [...picked].sort((a, b) => a - b)) {
-      const tp = TEMPLATES[i];
+      const tp = withHealth(TEMPLATES[i], settings.peek().health);
       if (titles.has(tp.title)) continue;
       createGoal({
         title: tp.title,
@@ -55,6 +55,7 @@ export function Onboarding() {
         schedule: tp.schedule || 'daily',
         per_week: tp.per_week || 3,
         time_of_day: tp.time_of_day || 'anytime',
+        health: tp.health || null,
       });
     }
     setStep(1);
@@ -97,7 +98,7 @@ export function Onboarding() {
                   <span>
                     <span class="t">{tp.title}</span>
                     <span class="s" style="display:block">
-                      {tp.schedule === 'weekly' ? `${tp.per_week}× a week` : tp.target > 1 ? `${tp.target} ${tp.unit}` : tp.hint || 'Every day'}
+                      {templateHint(withHealth(tp, settings.value.health))}
                     </span>
                   </span>
                 </button>

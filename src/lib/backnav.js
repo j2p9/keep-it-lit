@@ -7,24 +7,35 @@ import { closeOverlay, closeWelcome, hasOpenOverlay, setUi, uiState, welcomeLeav
 
 let armed = false;
 let ignore = 0;
+let pending = false;
 
 const welcomeShown = () => welcomeOpen.value && !welcomeLeaving.value;
 const closable = () =>
   hasOpenOverlay() || welcomeShown() || (session.value.status === 'signedIn' && ready.value && uiState.value.tab !== 'today');
 
+// Runs once things settle, so closing one sheet and opening the next in the same tap
+// (templates → goal editor) doesn't drop our entry and then step back out of the app.
+function settle() {
+  pending = false;
+  if (closable()) {
+    if (!armed) {
+      history.pushState({ kil: 'back' }, '');
+      armed = true;
+    }
+  } else if (armed) {
+    // Everything was closed from the UI: drop our entry so the next back leaves normally.
+    armed = false;
+    ignore += 1;
+    history.back();
+  }
+}
+
 export function installBackNavigation() {
   effect(() => {
-    if (closable()) {
-      if (!armed) {
-        history.pushState({ kil: 'back' }, '');
-        armed = true;
-      }
-    } else if (armed) {
-      // Everything was closed from the UI: drop our entry so the next back leaves normally.
-      armed = false;
-      ignore += 1;
-      history.back();
-    }
+    closable(); // subscribe to everything that decides it
+    if (pending) return;
+    pending = true;
+    setTimeout(settle, 0);
   });
 
   window.addEventListener('popstate', () => {

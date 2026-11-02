@@ -2,13 +2,14 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { VAPID_PUBLIC_KEY } from '../config.js';
 import { colorOf } from '../lib/colors.js';
-import { formatTime } from '../lib/dates.js';
+import { formatTime, formatWhen } from '../lib/dates.js';
 import { installPrompt, promptInstall } from '../lib/install.js';
 import { isIOS, isStandalone, deviceTimezone } from '../lib/platform.js';
 import { enablePush, hasSubscription, permission, pushSupported, sendTestPush } from '../lib/push.js';
 import { scheduleLabel } from '../lib/schedule.js';
 import {
   archivedGoals,
+  backupState,
   currentGoals,
   deleteAccount,
   deleteGoal,
@@ -41,7 +42,7 @@ function syncText(st, demo) {
   if (st.state === 'syncing') return 'Syncing…';
   if (st.state === 'error') return `Will retry · ${plural(st.pending, 'change')} waiting`;
   if (st.pending) return `${plural(st.pending, 'change')} waiting to sync`;
-  return 'All changes saved to the cloud';
+  return 'Streaks and settings are up to date';
 }
 
 function ReminderRow({ icon, title, sub, enabled, time, onEnabled, onTime }) {
@@ -128,7 +129,7 @@ export function Settings({ onClose }) {
     if (!f) return;
     try {
       const data = JSON.parse(await f.text());
-      if (!confirm('Add the goals and history from this backup to your account?')) return;
+      if (!confirm('Add the goals and history from this file to this phone?')) return;
       const r = importData(data);
       showToast(`Imported ${plural(r.goals, 'goal')} and ${plural(r.checkins, 'check-in')}`);
     } catch (err) {
@@ -139,14 +140,19 @@ export function Settings({ onClose }) {
   const doSignOut = async () => {
     const r = await signOut();
     if (r?.pending) {
-      if (!confirm(`${plural(r.pending, 'change')} haven’t synced yet because you’re offline. Sign out anyway and lose them?`)) return;
+      if (!confirm(`${plural(r.pending, 'setting')} haven’t synced yet because you’re offline. Sign out anyway? Your goals stay on this phone.`)) return;
       await signOut({ force: true });
     }
     closeAllOverlays();
   };
 
   const doDelete = async () => {
-    if (!confirm('Delete your account and all your goals, streaks and awards? This can’t be undone.')) return;
+    if (
+      !confirm(
+        'Delete your account? Your streaks, settings and backup are deleted from the cloud, and this phone forgets your goals and history. This can’t be undone.',
+      )
+    )
+      return;
     if (!confirm('Are you sure? Everything will be permanently deleted.')) return;
     try {
       await deleteAccount();
@@ -327,14 +333,47 @@ export function Settings({ onClose }) {
       </div>
       <div style="height:16px" />
 
+      {(isIOS() || demo || s.health) && (
+        <>
+          <h2 class="group-title">Apple Health</h2>
+          <div class="group">
+            <button class="item" onClick={() => openOverlay('healthSetup')}>
+              <span style="font-size:22px" aria-hidden="true">
+                ❤️
+              </span>
+              <div class="item-main">
+                <div class="item-label">Apple Health</div>
+                <div class="item-sub">{s.health ? 'Connected · fills in linked goals' : 'Let Health check off goals for you'}</div>
+              </div>
+              <IconNext size={18} class="chev" />
+            </button>
+          </div>
+          <div style="height:16px" />
+        </>
+      )}
+
       <h2 class="group-title">Your data</h2>
       <div class="group">
+        <button class="item" onClick={() => openOverlay('backup')}>
+          <span style="font-size:22px" aria-hidden="true">
+            🔐
+          </span>
+          <div class="item-main">
+            <div class="item-label">Encrypted backup</div>
+            <div class="item-sub">
+              {backupState.value.on
+                ? `On${backupState.value.at ? ` · saved ${formatWhen(backupState.value.at)}` : ''}`
+                : 'Off · your history is only on this phone'}
+            </div>
+          </div>
+          <IconNext size={18} class="chev" />
+        </button>
         <div class="item">
           <span style="font-size:22px" aria-hidden="true">
             ☁️
           </span>
           <div class="item-main">
-            <div class="item-label">Sync</div>
+            <div class="item-label">Cloud sync</div>
             <div class="item-sub">{syncText(syncStatus.value, demo)}</div>
           </div>
           {!demo && (
@@ -354,8 +393,8 @@ export function Settings({ onClose }) {
             📤
           </span>
           <div class="item-main">
-            <div class="item-label">Export a backup</div>
-            <div class="item-sub">Save a copy to Files, iCloud or email</div>
+            <div class="item-label">Export a copy</div>
+            <div class="item-sub">Save a file to Files, iCloud or email</div>
           </div>
         </button>
         <button class="item" onClick={() => fileRef.current?.click()}>
@@ -363,12 +402,15 @@ export function Settings({ onClose }) {
             📥
           </span>
           <div class="item-main">
-            <div class="item-label">Import a backup</div>
+            <div class="item-label">Import a copy</div>
           </div>
         </button>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={doImport} />
       </div>
-      <p class="group-note">Everything is saved on this phone first and synced to your account, so it’s safe offline and on a new phone.</p>
+      <p class="group-note">
+        Your goals, check-ins, notes, awards and Health numbers are stored only on this phone. Your account keeps your settings and each
+        goal’s streak (for reminders), plus the encrypted backup if it’s on.
+      </p>
 
       <h2 class="group-title">Account</h2>
       <div class="group">
@@ -405,6 +447,7 @@ export function Settings({ onClose }) {
           </span>
           <div class="item-main">
             <div class="item-label">{demo ? 'Reset demo' : 'Sign out'}</div>
+            {!demo && <div class="item-sub">Your goals stay on this phone for next time</div>}
           </div>
         </button>
         {!demo && (

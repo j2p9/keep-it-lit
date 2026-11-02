@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks';
 import { tick } from '../lib/haptics.js';
 
 export const Switch = ({ on, onChange, label }) => (
@@ -51,6 +52,57 @@ export function Stepper({ value, onChange, min = 0, max = 999, label }) {
       </div>
       <button type="button" aria-label="More" disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}>
         +
+      </button>
+    </div>
+  );
+}
+
+/**
+ * A passphrase field. It's a masked text field rather than type="password", so iPhone doesn't
+ * offer to save it over the account password.
+ */
+export function SecretInput({ value, onInput, label, placeholder }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div class="input-wrap">
+      <input
+        class={`input${show ? '' : ' secret'}`}
+        type="text"
+        aria-label={label}
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck={false}
+        data-1p-ignore=""
+        data-lpignore="true"
+        placeholder={placeholder}
+        value={value}
+        onInput={(e) => onInput(e.currentTarget.value)}
+      />
+      <button type="button" class="reveal" onClick={() => setShow(!show)}>
+        {show ? 'Hide' : 'Show'}
+      </button>
+    </div>
+  );
+}
+
+/** Read-only text with a Copy button, for the Health key and address. */
+export function CopyBox({ text, label }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      window.prompt(`Copy the ${label.toLowerCase()}:`, text);
+    }
+  };
+  return (
+    <div class="copy-box">
+      <code aria-label={label}>{text}</code>
+      <button type="button" class="btn btn-secondary btn-small" onClick={copy}>
+        {copied ? 'Copied' : 'Copy'}
       </button>
     </div>
   );

@@ -47,6 +47,7 @@ function sameSecret(a: string, b: string) {
   return diff === 0;
 }
 
+// One reminder that's due, from due_reminders(). Streak numbers come from the app's snapshot.
 type Due = {
   user_id: string;
   kind: string;
@@ -55,25 +56,15 @@ type Due = {
   goal_id: string | null;
   goal_title: string | null;
   goal_emoji: string | null;
+  goal_streak: number | null;
   due_count: number;
   done_count: number;
   has_goals: boolean;
-  remaining: { id: string; e: string; t: string }[];
-  stats: { day?: string; streaks?: Record<string, number> } | null;
+  remaining: { id: string; e: string; t: string; n: number }[];
   day_end_hour: number;
 };
 
 type Payload = { title: string; body: string; tag: string; url?: string; badge?: number };
-
-/** Streak counts the app last reported; only trusted if they're from today or yesterday. */
-function streakOf(r: Due, goalId: string) {
-  const st = r.stats;
-  if (!st?.streaks || !st.day) return 0;
-  const yesterday = new Date(`${r.local_day}T00:00:00Z`);
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  const fresh = st.day === r.local_day || st.day === yesterday.toISOString().slice(0, 10);
-  return fresh ? (st.streaks[goalId] ?? 0) : 0;
-}
 
 const goalsWord = (n: number) => `${n} ${n === 1 ? 'goal' : 'goals'}`;
 
@@ -81,10 +72,7 @@ function message(r: Due): Payload {
   const left = r.due_count - r.done_count;
   const first = (r.display_name || '').split(' ')[0];
   const endsAt = r.day_end_hour ? `${r.day_end_hour} AM` : 'midnight';
-  const risky = r.remaining
-    .map((g) => ({ ...g, n: streakOf(r, g.id) }))
-    .filter((g) => g.n > 0)
-    .sort((a, b) => b.n - a.n);
+  const risky = r.remaining.filter((g) => g.n > 0).sort((a, b) => b.n - a.n);
   const list = risky
     .slice(0, 3)
     .map((g) => `${g.e}${g.n}`)
@@ -117,7 +105,7 @@ function message(r: Due): Payload {
       url: './#welcome',
     };
   }
-  const n = r.goal_id ? streakOf(r, r.goal_id) : 0;
+  const n = r.goal_streak ?? 0;
   return {
     title: `${r.goal_emoji ?? '🔥'} ${r.goal_title ?? 'Your goal'}`,
     body: n > 0 ? `Time for this one. Your 🔥${n} streak is on the line.` : 'Time for this one. Tap to check it off.',

@@ -4,9 +4,10 @@ import { installed, installPrompt, promptInstall } from '../lib/install.js';
 import { isAndroid, isIOS, isStandalone } from '../lib/platform.js';
 import { isDone, isDueOn, isWeekly, TIME_SECTIONS } from '../lib/schedule.js';
 import { isAtRisk } from '../lib/streaks.js';
-import { currentGoals, hoursLeftToday, lookup, notes, setNote, streaks, today, todaySummary } from '../lib/store.js';
+import { backupState, currentGoals, deviceReady, hoursLeftToday, lookup, notes, setNote, streaks, today, todaySummary } from '../lib/store.js';
 import { openOverlay, setUi, showToast, uiState, welcomeOpen } from '../lib/ui.js';
 import { GoalRow } from '../components/GoalRow.jsx';
+import { HealthCard } from '../components/HealthCard.jsx';
 import { Ring } from '../components/Ring.jsx';
 import { IconGear, IconPlus, IconX } from '../components/icons.jsx';
 
@@ -156,6 +157,8 @@ export function Today() {
               </section>
             )}
 
+            <HealthCard day={t} />
+            <BackupNudge />
             <MoodCard day={t} />
             <p class="faint" style="text-align:center;font-size:13px;margin-top:18px">
               Tip: press and hold a goal to skip it, edit it, or log an exact amount.
@@ -195,6 +198,28 @@ function MoodCard({ day }) {
         {n?.note ? 'Edit today’s note' : 'Add a note about today'}
       </button>
     </section>
+  );
+}
+
+/** History lives only on this phone: suggest the encrypted backup until it's on (or dismissed). */
+function BackupNudge() {
+  if (backupState.value.on || !deviceReady.value || uiState.value.backupDismissed) return null;
+  return (
+    <div class="banner" role="note" style="margin-top:22px">
+      <span style="font-size:24px" aria-hidden="true">
+        🔐
+      </span>
+      <div>
+        <b>Back up your streaks</b>
+        Your history is only on this phone. An encrypted backup brings it back on a new one.
+      </div>
+      <button class="btn btn-primary btn-small" onClick={() => openOverlay('backup')}>
+        Turn on
+      </button>
+      <button class="close" aria-label="Dismiss" onClick={() => setUi({ backupDismissed: true })}>
+        <IconX size={18} />
+      </button>
+    </div>
   );
 }
 

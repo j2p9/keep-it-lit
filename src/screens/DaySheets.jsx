@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { colorOf } from '../lib/colors.js';
 import { formatDay } from '../lib/dates.js';
 import { tick } from '../lib/haptics.js';
+import { formatMetric, fromCount, METRIC, toCount } from '../lib/healthMetrics.js';
 import { isActiveOn, isDone, isDueOn, isWeekly, targetLabel } from '../lib/schedule.js';
 import { daySummary } from '../lib/stats.js';
-import { allGoals, goals, lookup, notes, setCheckin, setNote, streaks, today } from '../lib/store.js';
+import { allGoals, goals, health, lookup, notes, setCheckin, setNote, streaks, today } from '../lib/store.js';
 import { openOverlay, showToast } from '../lib/ui.js';
 import { GoalRow } from '../components/GoalRow.jsx';
 import { Sheet } from '../components/Sheet.jsx';
@@ -39,7 +40,10 @@ export function GoalActions({ goalId, day, onClose }) {
         </div>
       </div>
 
-      {goal.target > 1 && (
+      {goal.health?.metric ? (
+        <HealthAmount goal={goal} day={day} count={c?.count || 0} />
+      ) : (
+        goal.target > 1 && (
         <div class="form-group row-between">
           <div>
             <div style="font-weight:650">Amount</div>
@@ -55,6 +59,7 @@ export function GoalActions({ goalId, day, onClose }) {
             }}
           />
         </div>
+        )
       )}
 
       <div class="action-list">
@@ -103,6 +108,40 @@ export function GoalActions({ goalId, day, onClose }) {
         </button>
       </div>
     </Sheet>
+  );
+}
+
+/** The amount for a goal Apple Health fills in, in Health units, with what Health reported. */
+function HealthAmount({ goal, day, count }) {
+  const metric = goal.health.metric;
+  const reported = health.value[day]?.[metric];
+  return (
+    <div class="form-group row-between">
+      <div>
+        <div style="font-weight:650">Amount</div>
+        <div class="muted" style="font-size:13px">
+          Goal: {targetLabel(goal) || METRIC[metric].label}
+          {reported != null ? ` · ❤️ Health: ${formatMetric(metric, reported)}` : ''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input
+          key={`${metric}-${count}`}
+          type="number"
+          inputMode="decimal"
+          class="time-input"
+          style="width:104px;text-align:right"
+          aria-label={`Amount in ${METRIC[metric].unit}`}
+          min={0}
+          defaultValue={String(Math.round(fromCount(metric, count) * 10) / 10)}
+          onChange={(e) => {
+            const v = Number(e.currentTarget.value);
+            if (v >= 0) setCheckin(goal, day, { count: toCount(metric, v), skipped: false });
+          }}
+        />
+        <span class="muted">{METRIC[metric].unit}</span>
+      </div>
+    </div>
   );
 }
 

@@ -93,4 +93,16 @@ export function formatTime(hhmm) {
   return fmt({ hour: 'numeric', minute: '2-digit' }).format(new Date(2023, 0, 1, h, m));
 }
 
+/** "today, 3:12 PM", "yesterday, 9:05 AM", or "Nov 1" for a timestamp. */
+export function formatWhen(iso, now = new Date()) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const day = toKey(d);
+  const t = toKey(now);
+  const time = fmt({ hour: 'numeric', minute: '2-digit' }).format(d);
+  if (day === t) return `today, ${time}`;
+  if (day === addDays(t, -1)) return `yesterday, ${time}`;
+  return fmt({ month: 'short', day: 'numeric' }).format(d);
+}
+
 export const hhmm = (t) => (t ? t.slice(0, 5) : t);

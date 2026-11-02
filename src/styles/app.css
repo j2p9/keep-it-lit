@@ -610,6 +610,10 @@ button,
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
+.check-count .count-num.pct {
+  font-size: 11px;
+  letter-spacing: -0.02em;
+}
 .streak {
   display: inline-flex;
   align-items: center;
@@ -698,6 +702,10 @@ button,
   margin-left: auto;
   color: var(--text-3);
   padding: 6px;
+}
+.banner .btn {
+  flex: none;
+  white-space: nowrap;
 }
 
 /* ============================================================ sheets & pages */
@@ -1924,6 +1932,90 @@ button,
   font-weight: 800;
   background: var(--flame);
   color: #fff;
+}
+/* ============================================================ health & backup */
+.setup-emoji {
+  display: block;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.input.secret {
+  -webkit-text-security: disc;
+}
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 650;
+}
+.or-divider::before,
+.or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line-strong);
+}
+.copy-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--line-strong);
+}
+.copy-box code {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+.guide {
+  margin: 0 0 24px;
+  padding: 0 4px 0 26px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.guide li + li {
+  margin-top: 10px;
+}
+.guide b {
+  color: var(--text);
+  font-weight: 650;
+}
+.guide code,
+.form-note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+.screen .health-card {
+  margin-top: 22px;
+}
+.health-card .stat-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.health-card .stat .v small {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+  margin-left: 2px;
+}
+.health-card .stat .k {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .splash {
   position: fixed;

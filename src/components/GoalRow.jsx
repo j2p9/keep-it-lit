@@ -3,6 +3,7 @@ import { colorOf } from '../lib/colors.js';
 import { formatTime } from '../lib/dates.js';
 import { tick } from '../lib/haptics.js';
 import { confetti } from '../lib/confetti.js';
+import { healthProgressLabel } from '../lib/healthMetrics.js';
 import { isDone, scheduleLabel, targetLabel } from '../lib/schedule.js';
 import { isAtRisk, streakGlyph } from '../lib/streaks.js';
 import { hoursLeftToday, lookup, restoreCheckin, streaks, tapGoal, today, todaySummary } from '../lib/store.js';
@@ -98,6 +99,9 @@ export function GoalRow({ goal, day }) {
   const done = isDone(goal, c);
   const skipped = Boolean(c?.skipped);
   const counted = goal.target > 1;
+  // Filled in by Apple Health: a tap marks it done by hand instead of adding one.
+  const linked = Boolean(goal.health?.metric);
+  const tapsCount = counted && !linked;
   const count = c?.count || 0;
   const isToday = day === today.value;
   const color = colorOf(goal.color);
@@ -115,13 +119,13 @@ export function GoalRow({ goal, day }) {
     const prev = tapGoal(goal, day);
     const after = todaySummary.peek();
     const row = lookup.peek()(goal.id, day);
-    if (counted && !skipped) setFx({ kind: 'plus', id: Date.now() });
+    if (tapsCount && !skipped) setFx({ kind: 'plus', id: Date.now() });
     else if (isDone(goal, row) && !done) setFx({ kind: 'burst', id: Date.now() });
     const undo = { label: 'Undo', fn: () => restoreCheckin(goal, day, prev) };
     if (isToday && after.perfect && !before.perfect) {
       confetti();
       showToast('You kept it lit today! 🔥', { action: undo, duration: 4500 });
-    } else if (counted && !skipped) {
+    } else if (tapsCount && !skipped) {
       const unit = goal.unit ? ` ${goal.unit}` : '';
       showToast(`${goal.emoji} ${row.count} of ${goal.target}${unit}${isDone(goal, row) && !done ? ' · done!' : ''}`, { action: undo, duration: 2600 });
     } else {
@@ -133,6 +137,7 @@ export function GoalRow({ goal, day }) {
   let sub;
   if (skipped) sub = 'Skipped · streak is safe';
   else if (goal.schedule === 'weekly' && s) sub = `${s.week.done} of ${s.week.required} this week`;
+  else if (linked) sub = counted ? `❤️ ${healthProgressLabel(goal, count)}` : '❤️ Apple Health';
   else if (counted) sub = `${count} / ${targetLabel(goal)}`;
   else if (goal.schedule !== 'daily') sub = scheduleLabel(goal);
   else if (goal.reminder_time && !done) sub = `🔔 ${formatTime(goal.reminder_time)}`;
@@ -163,8 +168,8 @@ export function GoalRow({ goal, day }) {
       {counted && !done ? (
         <div class="check-count" aria-hidden="true">
           <Ring size={40} stroke={4} value={count / goal.target} color={color} />
-          <span class="count-num" key={count}>
-            {count || '+'}
+          <span class={`count-num${linked ? ' pct' : ''}`} key={count}>
+            {linked ? `${Math.min(99, Math.floor((count / goal.target) * 100))}%` : count || '+'}
           </span>
         </div>
       ) : (

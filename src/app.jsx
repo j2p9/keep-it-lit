@@ -1,28 +1,33 @@
 import { Component } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { isIOS, isStandalone } from './lib/platform.js';
-import { firstLoad, needsOnboarding, ready, session } from './lib/store.js';
+import { firstLoad, needsOnboarding, ready, session, setupStep } from './lib/store.js';
 import { closeOverlay, onboardingActive, openOverlay, overlays, recoveryMode, uiState, welcomeOpen } from './lib/ui.js';
 import { Celebration, Splash, TabBar, Toast } from './components/chrome.jsx';
 import { GradientDefs } from './components/Ring.jsx';
 import { Auth, Install, SetPassword } from './screens/Auth.jsx';
 import { AwardSheet, Awards } from './screens/Awards.jsx';
+import { BackupSheet } from './screens/Backup.jsx';
 import { Calendar } from './screens/Calendar.jsx';
 import { DaySheet, GoalActions } from './screens/DaySheets.jsx';
 import { GoalEditor, Templates } from './screens/GoalEditor.jsx';
+import { HealthSetup } from './screens/HealthSetup.jsx';
 import { Onboarding } from './screens/Onboarding.jsx';
 import { GoalDetail, Progress } from './screens/Progress.jsx';
 import { ChangePassword, ManageGoals, Settings } from './screens/Settings.jsx';
+import { Setup } from './screens/Setup.jsx';
 import { Today } from './screens/Today.jsx';
 import { Welcome } from './screens/Welcome.jsx';
 
 const OVERLAYS = {
   awardDetail: AwardSheet,
+  backup: BackupSheet,
   changePassword: ChangePassword,
   daySheet: DaySheet,
   goalActions: GoalActions,
   goalDetail: GoalDetail,
   goalEditor: GoalEditor,
+  healthSetup: HealthSetup,
   manageGoals: ManageGoals,
   settings: Settings,
   templates: Templates,
@@ -113,6 +118,7 @@ export function App() {
   else if (recoveryMode.value) body = <SetPassword />;
   else if (s.status === 'signedOut') body = isIOS() && !isStandalone() && !uiState.value.installDismissed ? <Install /> : <Auth />;
   else if (!ready.value || firstLoad.value) body = <Splash text="Loading your goals…" />;
+  else if (setupStep.value) body = <Setup />;
   else if (onboardingActive.value || needsOnboarding.value) body = <Onboarding />;
   else {
     body = <Shell />;
@@ -122,7 +128,7 @@ export function App() {
     <ErrorBoundary>
       <GradientDefs />
       {body}
-      <Overlays />
+      {!setupStep.value && <Overlays />}
       {shell && welcomeOpen.value && <Welcome />}
       {shell && !welcomeOpen.value && <Celebration />}
       <Toast />

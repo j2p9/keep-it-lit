@@ -31,7 +31,8 @@ Press and hold the app icon for shortcuts to Today, Calendar, Progress and Award
 - **Progress:** Week / Month / Year completion charts, Highlights, habit strength and a 26-week heatmap per goal.
 - **Awards:** 39 medals across streaks, perfect days, milestones, consistency, monthly challenges, limited editions and a few secrets. They always match your history: undo the check-offs behind an award and it goes away.
 - **Reminders:** a daily check-in (3 PM), a streak saver (9 PM, only if goals are left) and an optional morning kickoff, plus a reminder per goal. Every time is adjustable.
-- **Never lose anything:** every change is saved on the phone first and synced to your account, so it works offline and on a new phone. There's also Export/Import backup.
+- **Apple Health:** goals can follow Steps, Exercise, Active calories, Mindful minutes, Sleep, Water or Workouts. They fill in and check themselves off. Web apps can't read Health directly, so an iOS Shortcut uploads today's totals a few times a day. Settings → Apple Health has the key, the upload address and a step-by-step guide.
+- **Your data stays on your phone:** goals, check-ins, notes, awards and Health numbers are stored only on the phone. Your account keeps just your settings and each goal's streak (so reminders know what's left), plus an **encrypted backup** if you turn it on: it's locked with your own passphrase before it leaves the phone, so nobody else can read it. On a new phone, sign in and enter the passphrase to bring everything back, or start fresh and keep your streaks. Export/Import a file is still there too.
 
 ## Development
 
@@ -42,14 +43,18 @@ npm test             # streak, stats and award logic
 npm run build
 ```
 
-Demo URLs on localhost: `?demo` (keeps your changes), `?demo=reset` (fresh sample), `?demo=fresh` (new-user onboarding), and `&at=2026-11-02T21:30` to preview a time of day.
+Demo URLs on localhost: `?demo` (keeps your changes), `?demo=reset` (fresh sample), `?demo=fresh` (new-user onboarding), and `&at=2026-11-02T21:30` to preview a time of day. In demo mode the console has `kilDemo.health({ steps: 12000 })` to simulate a Health upload, and `kilDemo.setup('migrate')` or `kilDemo.setup('restore', { newPhone: true })` to preview the setup screens. The demo backup is kept in localStorage.
 
 ### Backend (Supabase)
 
 - `supabase/migrations/0001_schema.sql`: tables with row-level security (each user sees only their own rows).
 - `supabase/migrations/0002_reminders.sql`: `due_reminders()` plus a `pg_cron` job that calls the `send-reminders` Edge Function every minute.
+- `supabase/migrations/0003_local_only.sql`: `goal_streaks` (the streak snapshot reminders read), `backups` (ciphertext only), `health_tokens` (SHA-256 of each Shortcut key) and `health_inbox` (Health numbers waiting for the app, cleared after 7 days at most). `purge_cloud_copy()` empties the older goal tables for an account once its phone holds everything.
 - `supabase/functions/signup`: creates accounts that are ready to use immediately.
 - `supabase/functions/send-reminders`: sends Web Push reminders and test notifications.
+- `supabase/functions/health-import`: receives the Shortcut's uploads (`POST` JSON with `date` plus any of `steps`, `exercise`, `active`, `mindful`, `sleep`, `water`, `workouts`; `Authorization: Bearer <key>`).
+
+The goals, check-ins, notes, achievements and challenges tables from 0001 are only read once per account, to move it to local-only. They can be dropped once every account has moved.
 
 Secrets live in Supabase Vault, never in this repo: `kil_vapid_public`, `kil_vapid_private`, `kil_vapid_subject`, `kil_cron_secret` and `kil_project_url`. Public settings (project URL, publishable key, VAPID public key) are in `src/config.js`.
 

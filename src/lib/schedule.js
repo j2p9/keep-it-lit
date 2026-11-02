@@ -34,8 +34,10 @@ export function scheduleLabel(goal) {
 }
 
 export function targetLabel(goal) {
+  // Sleep linked to Apple Health counts minutes but reads better in hours.
+  if (goal.health?.metric === 'sleep') return `${Math.round((goal.target / 60) * 10) / 10} h`;
   if (goal.target <= 1) return '';
-  return `${goal.target}${goal.unit ? ` ${goal.unit}` : ''}`;
+  return `${goal.target.toLocaleString()}${goal.unit ? ` ${goal.unit}` : ''}`;
 }
 
 export const TIME_SECTIONS = [

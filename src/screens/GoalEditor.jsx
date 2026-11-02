@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'preact/hooks';
 import { colorOf, GOAL_COLORS } from '../lib/colors.js';
 import { weekdayLetters } from '../lib/dates.js';
-import { ALL_DAYS, scheduleLabel, TIME_SECTIONS } from '../lib/schedule.js';
-import { archiveGoal, createGoal, deleteGoal, goals, saveGoal, settings } from '../lib/store.js';
-import { EMOJIS, TEMPLATES } from '../lib/templates.js';
+import { fromCount, HEALTH_METRICS, METRIC, toCount, unitFor } from '../lib/healthMetrics.js';
+import { isIOS } from '../lib/platform.js';
+import { ALL_DAYS, scheduleLabel, targetLabel, TIME_SECTIONS } from '../lib/schedule.js';
+import { archiveGoal, createGoal, deleteGoal, goals, saveGoal, session, settings } from '../lib/store.js';
+import { EMOJIS, TEMPLATES, templateHint, withHealth } from '../lib/templates.js';
 import { openOverlay, setUi, showToast } from '../lib/ui.js';
 import { Page, Sheet } from '../components/Sheet.jsx';
 import { Segmented, Stepper, Switch } from '../components/controls.jsx';
@@ -19,6 +21,7 @@ const blank = {
   per_week: 3,
   time_of_day: 'anytime',
   reminder_time: null,
+  health: null,
 };
 
 const fields = (g) => ({
@@ -32,7 +35,11 @@ const fields = (g) => ({
   per_week: g.per_week || 3,
   time_of_day: g.time_of_day || 'anytime',
   reminder_time: g.reminder_time || null,
+  health: g.health?.metric ? { metric: g.health.metric } : null,
 });
+
+// Typing steps in: big targets move in sensible amounts.
+const STEP = { steps: 500, active: 50, water: 250, sleep: 0.5 };
 
 export function GoalEditor({ goalId, template, draft, onClose }) {
   const existing = goalId ? goals.value[goalId] : null;
@@ -53,16 +60,32 @@ export function GoalEditor({ goalId, template, draft, onClose }) {
     onClose();
   };
 
+  const metric = f.health?.metric || null;
   const counted = f.target > 1;
   const valid = f.title.trim() && (f.schedule !== 'weekdays' || f.days.length);
+  // Health linking needs the iPhone Shortcut; keep it visible on goals that already use it.
+  const healthOffered = isIOS() || session.value.demo || settings.value.health || Boolean(metric);
+
+  const pickMetric = (key) => {
+    if (!key) return set({ health: null, target: 1, unit: '' });
+    const m = METRIC[key];
+    set({
+      health: { metric: key },
+      target: toCount(key, m.target),
+      unit: unitFor(key),
+      title: f.title.trim() ? f.title : m.title,
+      emoji: f.emoji === '🔥' ? m.emoji : f.emoji,
+    });
+  };
 
   const save = () => {
     if (!valid) return;
     const data = {
       ...f,
       title: f.title.trim().slice(0, 60),
-      unit: counted ? f.unit.trim().slice(0, 20) || null : null,
-      target: counted ? f.target : 1,
+      unit: metric ? unitFor(metric) : counted ? f.unit.trim().slice(0, 20) || null : null,
+      target: metric ? Math.max(1, Math.round(f.target)) : counted ? f.target : 1,
+      health: metric ? { metric } : null,
       days: f.schedule === 'weekdays' ? [...f.days].sort() : ALL_DAYS,
     };
     if (existing) {
@@ -99,7 +122,7 @@ export function GoalEditor({ goalId, template, draft, onClose }) {
           <div class="name">{f.title.trim() || 'Your new goal'}</div>
           <div class="muted" style="font-size:14px;margin-top:2px">
             {scheduleLabel(f)}
-            {counted ? ` · ${f.target}${f.unit ? ` ${f.unit}` : ''}` : ''}
+            {metric ? ` · ❤️ ${targetLabel(f) || METRIC[metric].label}` : counted ? ` · ${f.target}${f.unit ? ` ${f.unit}` : ''}` : ''}
           </div>
         </div>
       </div>
@@ -155,31 +178,79 @@ export function GoalEditor({ goalId, template, draft, onClose }) {
         </div>
       </div>
 
-      <div class="form-group">
-        <span class="label">How do you track it?</span>
-        <Segmented
-          label="Tracking"
-          options={[
-            ['check', 'Check it off'],
-            ['count', 'Count it'],
-          ]}
-          value={counted ? 'count' : 'check'}
-          onChange={(v) => set({ target: v === 'count' ? Math.max(2, f.target, 8) : 1 })}
-        />
-        {counted && (
-          <div class="row-between" style="margin-top:14px;flex-wrap:wrap">
-            <Stepper value={f.target} min={2} max={999} onChange={(v) => set({ target: v })} label="Daily target" />
-            <input
-              class="input"
-              style="flex:1;min-width:140px"
-              maxLength={20}
-              placeholder="glasses, pages, minutes…"
-              value={f.unit}
-              onInput={(e) => set({ unit: e.currentTarget.value })}
-            />
+      {healthOffered && (
+        <div class="form-group">
+          <div class="row-between">
+            <div>
+              <div style="font-weight:650">Fill in from Apple Health</div>
+              <div class="muted" style="font-size:13px">
+                {settings.value.health ? 'Checks itself off when Health reaches the target' : 'Set up the Shortcut in Settings → Apple Health'}
+              </div>
+            </div>
+            <select class="time-input" aria-label="Apple Health number" value={metric || ''} onChange={(e) => pickMetric(e.currentTarget.value)}>
+              <option value="">Off</option>
+              {HEALTH_METRICS.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
-      </div>
+          {metric && (
+            <div class="row-between" style="margin-top:14px">
+              <span class="muted">Daily target</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input
+                  key={`${metric}-${f.target}`}
+                  type="number"
+                  inputMode="decimal"
+                  class="time-input"
+                  style="width:112px;text-align:right"
+                  aria-label={`Daily target in ${METRIC[metric].unit}`}
+                  min={metric === 'sleep' ? 0.5 : 1}
+                  step={STEP[metric] || 1}
+                  defaultValue={String(fromCount(metric, f.target))}
+                  onChange={(e) => {
+                    const v = Number(e.currentTarget.value);
+                    if (v > 0) set({ target: Math.max(1, toCount(metric, v)) });
+                  }}
+                />
+                <span class="muted" style="min-width:42px">
+                  {METRIC[metric].unit}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!metric && (
+        <div class="form-group">
+          <span class="label">How do you track it?</span>
+          <Segmented
+            label="Tracking"
+            options={[
+              ['check', 'Check it off'],
+              ['count', 'Count it'],
+            ]}
+            value={counted ? 'count' : 'check'}
+            onChange={(v) => set({ target: v === 'count' ? Math.max(2, f.target, 8) : 1 })}
+          />
+          {counted && (
+            <div class="row-between" style="margin-top:14px;flex-wrap:wrap">
+              <Stepper value={f.target} min={2} max={999} onChange={(v) => set({ target: v })} label="Daily target" />
+              <input
+                class="input"
+                style="flex:1;min-width:140px"
+                maxLength={20}
+                placeholder="glasses, pages, minutes…"
+                value={f.unit}
+                onInput={(e) => set({ unit: e.currentTarget.value })}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div class="form-group">
         <span class="label">How often?</span>
@@ -241,14 +312,22 @@ export function GoalEditor({ goalId, template, draft, onClose }) {
         </div>
       </div>
 
-      {!existing && f.schedule !== 'weekly' && (
+      {!existing && (
         <div class="form-group">
           <div class="row-between">
             <div>
               <div style="font-weight:650">Already doing this?</div>
-              <div class="muted" style="font-size:13px">Days in a row so far. We’ll carry your streak over.</div>
+              <div class="muted" style="font-size:13px">
+                {f.schedule === 'weekly' ? 'Weeks in a row so far.' : 'Days in a row so far.'} We’ll carry your streak over.
+              </div>
             </div>
-            <Stepper value={prior} min={0} max={365} onChange={setPrior} label="Days in a row so far" />
+            <Stepper
+              value={prior}
+              min={0}
+              max={f.schedule === 'weekly' ? 104 : 365}
+              onChange={setPrior}
+              label={f.schedule === 'weekly' ? 'Weeks in a row so far' : 'Days in a row so far'}
+            />
           </div>
         </div>
       )}
@@ -289,6 +368,7 @@ export function GoalEditor({ goalId, template, draft, onClose }) {
 /** "Add a goal" picker: one-tap templates, or start from scratch. */
 export function Templates({ onClose }) {
   const have = new Set(Object.values(goals.value).filter((g) => !g.deleted_at && !g.archived_on).map((g) => g.title));
+  const linked = settings.value.health;
   const pick = (template) => {
     onClose();
     openOverlay('goalEditor', { template });
@@ -299,19 +379,21 @@ export function Templates({ onClose }) {
         ✏️ Create your own
       </button>
       <div class="tpl-grid">
-        {TEMPLATES.filter((t) => !have.has(t.title)).map((t) => (
-          <button key={t.title} class="tpl" style={{ '--c': colorOf(t.color) }} onClick={() => pick(t)}>
-            <span class="e" aria-hidden="true">
-              {t.emoji}
-            </span>
-            <span>
-              <span class="t">{t.title}</span>
-              <span class="s" style="display:block">
-                {t.schedule === 'weekly' ? `${t.per_week}× a week` : t.target > 1 ? `${t.target} ${t.unit}` : t.hint || 'Every day'}
+        {TEMPLATES.filter((t) => !have.has(t.title))
+          .map((t) => withHealth(t, linked))
+          .map((t) => (
+            <button key={t.title} class="tpl" style={{ '--c': colorOf(t.color) }} onClick={() => pick(t)}>
+              <span class="e" aria-hidden="true">
+                {t.emoji}
               </span>
-            </span>
-          </button>
-        ))}
+              <span>
+                <span class="t">{t.title}</span>
+                <span class="s" style="display:block">
+                  {templateHint(t)}
+                </span>
+              </span>
+            </button>
+          ))}
       </div>
     </Sheet>
   );

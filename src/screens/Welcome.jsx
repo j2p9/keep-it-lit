@@ -7,6 +7,7 @@ import { nextMilestone } from '../lib/streaks.js';
 import { allGoals, awardState, clock, currentChallenge, currentGoals, lookup, profile, streaks, today } from '../lib/store.js';
 import { closeWelcome, welcomeLeaving } from '../lib/ui.js';
 import { WeekStrip } from '../components/chrome.jsx';
+import { HealthCard } from '../components/HealthCard.jsx';
 
 // Original encouragement, one per day.
 const LINES = [
@@ -128,6 +129,8 @@ export function Welcome() {
             <div class="recap-line">👋 Today is a great day to start a streak.</div>
           )}
         </section>
+
+        <HealthCard day={t} latest />
 
         {live.length > 0 && (
           <section class="card">
