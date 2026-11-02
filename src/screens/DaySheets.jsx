@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { colorOf } from '../lib/colors.js';
 import { formatDay } from '../lib/dates.js';
 import { tick } from '../lib/haptics.js';
@@ -115,9 +115,14 @@ export function DaySheet({ day, onClose }) {
   const sum = daySummary(all, lookup.value, day);
   const n = notes.value[day];
   const [text, setText] = useState(n?.note || '');
+  const textRef = useRef(text);
+  textRef.current = text;
   const saveNote = () => {
-    if ((n?.note || '') !== text.trim()) setNote(day, { note: text.trim().slice(0, 1000) });
+    const next = textRef.current.trim().slice(0, 1000);
+    if ((notes.peek()[day]?.note || '') !== next) setNote(day, { note: next });
   };
+  // Save however the sheet closes, including Android's back button.
+  useEffect(() => saveNote, [day]);
   const close = () => {
     saveNote();
     onClose();

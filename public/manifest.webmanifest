@@ -10,9 +10,59 @@
   "background_color": "#110C0B",
   "theme_color": "#110C0B",
   "categories": ["health", "lifestyle", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/today.jpg",
+      "sizes": "545x1179",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Check off today’s goals and keep every streak lit"
+    },
+    {
+      "src": "screenshots/calendar.jpg",
+      "sizes": "545x1179",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Your history as a calendar of progress rings"
+    },
+    {
+      "src": "screenshots/awards.jpg",
+      "sizes": "545x1179",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Earn awards for streaks, perfect days and milestones"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Today’s goals",
+      "short_name": "Today",
+      "url": "./#today",
+      "icons": [{ "src": "icons/shortcut-today.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Calendar",
+      "short_name": "Calendar",
+      "url": "./#calendar",
+      "icons": [{ "src": "icons/shortcut-calendar.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Progress",
+      "short_name": "Progress",
+      "url": "./#progress",
+      "icons": [{ "src": "icons/shortcut-progress.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Awards",
+      "short_name": "Awards",
+      "url": "./#awards",
+      "icons": [{ "src": "icons/shortcut-awards.png", "sizes": "96x96", "type": "image/png" }]
+    }
   ]
 }

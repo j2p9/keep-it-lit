@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { VAPID_PUBLIC_KEY } from '../config.js';
 import { colorOf } from '../lib/colors.js';
 import { formatTime } from '../lib/dates.js';
+import { installPrompt, promptInstall } from '../lib/install.js';
 import { isIOS, isStandalone, deviceTimezone } from '../lib/platform.js';
 import { enablePush, hasSubscription, permission, pushSupported, sendTestPush } from '../lib/push.js';
 import { scheduleLabel } from '../lib/schedule.js';
@@ -371,6 +372,22 @@ export function Settings({ onClose }) {
 
       <h2 class="group-title">Account</h2>
       <div class="group">
+        {installPrompt.value && !isStandalone() && (
+          <button
+            class="item"
+            onClick={async () => {
+              if (await promptInstall()) showToast('Installed! Open Keep It Lit from your home screen.');
+            }}
+          >
+            <span style="font-size:22px" aria-hidden="true">
+              📲
+            </span>
+            <div class="item-main">
+              <div class="item-label">Install the app</div>
+              <div class="item-sub">Put Keep It Lit on your home screen</div>
+            </div>
+          </button>
+        )}
         {!demo && (
           <button class="item" onClick={() => openOverlay('changePassword')}>
             <span style="font-size:22px" aria-hidden="true">

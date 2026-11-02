@@ -4,6 +4,8 @@ export const isStandalone = () =>
 export const isIOS = () =>
   /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
+export const isAndroid = () => /Android/i.test(navigator.userAgent);
+
 export function deviceTimezone() {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';

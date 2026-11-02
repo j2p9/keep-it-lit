@@ -513,7 +513,9 @@ export const syncNow = async () => {
 
 // ---------------------------------------------------------------- automatic follow-ups
 
-// New awards: store them, and celebrate the ones earned in the last couple of days.
+// New awards: store them, and celebrate the ones earned in the last couple of days. Stored rows
+// only remember what was already celebrated; what's shown always follows the history, so undoing
+// a check-off removes the award (and redoing it brings it back without a second celebration).
 effect(() => {
   if (!ready.value || !synced.value) return;
   const { earned } = awardState.value;
@@ -525,12 +527,14 @@ effect(() => {
   celebrate(rows.filter((r) => !r.seen));
 });
 
-// Awards earned on another device (or left uncelebrated when the app closed) get their moment too.
+// Awards earned on another device (or left uncelebrated when the app closed) get their moment too,
+// as long as the history still earns them.
 let celebratedStored = false;
 effect(() => {
   if (!ready.value || !synced.value || celebratedStored) return;
   celebratedStored = true;
-  celebrate(Object.values(achievements.peek()).filter((a) => !a.seen));
+  const { earned } = awardState.peek();
+  celebrate(Object.values(achievements.peek()).filter((a) => !a.seen && earned.has(a.award_key)));
 });
 
 // Personal monthly challenge, fixed when the month starts.

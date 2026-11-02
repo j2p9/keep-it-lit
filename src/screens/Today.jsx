@@ -1,10 +1,11 @@
 import { formatDay } from '../lib/dates.js';
 import { tick } from '../lib/haptics.js';
-import { isIOS, isStandalone } from '../lib/platform.js';
+import { installed, installPrompt, promptInstall } from '../lib/install.js';
+import { isAndroid, isIOS, isStandalone } from '../lib/platform.js';
 import { isDone, isDueOn, isWeekly, TIME_SECTIONS } from '../lib/schedule.js';
 import { isAtRisk } from '../lib/streaks.js';
 import { currentGoals, hoursLeftToday, lookup, notes, setNote, streaks, today, todaySummary } from '../lib/store.js';
-import { openOverlay, setUi, uiState, welcomeOpen } from '../lib/ui.js';
+import { openOverlay, setUi, showToast, uiState, welcomeOpen } from '../lib/ui.js';
 import { GoalRow } from '../components/GoalRow.jsx';
 import { Ring } from '../components/Ring.jsx';
 import { IconGear, IconPlus, IconX } from '../components/icons.jsx';
@@ -95,7 +96,7 @@ export function Today() {
               <Ring size={128} stroke={14} value={sum.fill ?? 0} glow label={`${sum.done} of ${sum.due} goals done`}>
                 {sum.due ? (
                   <>
-                    <div class="ring-num">
+                    <div class="ring-num" key={sum.done}>
                       {sum.done}
                       <small>/{sum.due}</small>
                     </div>
@@ -198,16 +199,39 @@ function MoodCard({ day }) {
 }
 
 function InstallBanner() {
-  if (!isIOS() || isStandalone() || uiState.value.installDismissed) return null;
+  if (isStandalone() || installed.value || uiState.value.installDismissed) return null;
+  const canPrompt = Boolean(installPrompt.value);
+  let title;
+  let text;
+  if (canPrompt) {
+    title = 'Install Keep It Lit';
+    text = 'One tap from your home screen, and it works offline.';
+  } else if (isIOS()) {
+    title = 'Get reminders';
+    text = 'In Safari tap Share, then “Add to Home Screen”.';
+  } else if (isAndroid()) {
+    title = 'Add to your home screen';
+    text = 'Tap ⋮ in your browser, then “Install app” or “Add to Home screen”.';
+  } else {
+    return null;
+  }
+  const install = async () => {
+    if (await promptInstall()) showToast('Installed! Open Keep It Lit from your home screen.');
+  };
   return (
     <div class="banner" role="note">
       <span style="font-size:24px" aria-hidden="true">
         📲
       </span>
       <div>
-        <b>Get reminders</b>
-        In Safari tap Share, then “Add to Home Screen”.
+        <b>{title}</b>
+        {text}
       </div>
+      {canPrompt && (
+        <button class="btn btn-primary btn-small" onClick={install}>
+          Install
+        </button>
+      )}
       <button class="close" aria-label="Dismiss" onClick={() => setUi({ installDismissed: true })}>
         <IconX size={18} />
       </button>

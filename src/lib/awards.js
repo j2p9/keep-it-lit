@@ -398,7 +398,7 @@ export function evaluateAwards({ goals, checkinsList, lookup, today, streaks, ch
   return { earned, stats };
 }
 
-/** Award keys the history has earned that are not stored yet. Stored awards are never taken away. */
+/** Award keys the history has earned that haven't been stored (and celebrated) yet. */
 export function newAwards(storedKeys, earned) {
   const out = [];
   for (const [key, day] of earned) if (!storedKeys.has(key)) out.push({ award_key: key, earned_on: day });

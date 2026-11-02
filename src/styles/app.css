@@ -179,7 +179,20 @@ button,
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   padding: calc(var(--safe-top) + 10px) 16px calc(var(--tabbar-h) + var(--safe-bottom) + 28px);
-  animation: fade-in 0.25s var(--ease);
+}
+/* Each tab slides in from the side you moved toward. */
+.screen-wrap {
+  position: absolute;
+  inset: 0;
+}
+.screen-wrap.from-right {
+  animation: from-right 0.34s var(--ease);
+}
+.screen-wrap.from-left {
+  animation: from-left 0.34s var(--ease);
+}
+.screen-wrap.from-none {
+  animation: fade-in 0.3s var(--ease);
 }
 .inner {
   max-width: 560px;
@@ -343,17 +356,40 @@ button,
   right: 0;
   bottom: 0;
   z-index: 50;
-  display: flex;
-  justify-content: space-around;
   padding: 6px 6px calc(var(--safe-bottom) + 4px);
   background: var(--tabbar-bg);
   -webkit-backdrop-filter: saturate(180%) blur(22px);
   backdrop-filter: saturate(180%) blur(22px);
   border-top: 1px solid var(--line);
 }
+.tabs {
+  position: relative;
+  display: flex;
+  max-width: 480px;
+  margin: 0 auto;
+}
+/* A soft highlight that glides to the active tab. */
+.tab-pill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 25%;
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform 0.45s var(--spring);
+  pointer-events: none;
+}
+.tab-pill::before {
+  content: '';
+  position: absolute;
+  inset: 1px 14px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
 .tab {
+  position: relative;
+  z-index: 1;
   flex: 1;
-  max-width: 120px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -372,6 +408,7 @@ button,
 }
 .tab.on svg {
   transform: scale(1.08);
+  animation: tab-bounce 0.5s var(--spring);
 }
 
 /* ============================================================ ring */
@@ -865,25 +902,38 @@ button,
   line-height: 1.4;
 }
 .seg {
+  position: relative;
   display: flex;
-  gap: 2px;
   padding: 3px;
   border-radius: 13px;
   background: var(--bg-elev-2);
 }
+/* The selected option's background slides between choices. */
+.seg-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--n));
+  transform: translateX(calc(var(--i) * 100%));
+  border-radius: 10px;
+  background: var(--bg-elev);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  transition: transform 0.38s var(--spring);
+}
 .seg button {
+  position: relative;
+  z-index: 1;
   flex: 1;
   height: 36px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 650;
   color: var(--text-2);
-  transition: background 0.2s, color 0.2s;
+  transition: color 0.2s, transform 0.15s var(--ease);
 }
 .seg button.on {
-  background: var(--bg-elev);
   color: var(--text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
 }
 .switch {
   position: relative;
@@ -1919,6 +1969,282 @@ button,
   font-weight: 750;
   color: #ffb27a;
   background: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================================ animation */
+/* Content rises into place, one piece after another, whenever a screen appears. */
+.screen .inner > *,
+.stack > *,
+.medal-grid > *,
+.tiles > * {
+  animation: rise-in 0.48s var(--ease) backwards;
+}
+.screen .inner > :nth-child(2),
+.stack > :nth-child(2),
+.medal-grid > :nth-child(2),
+.tiles > :nth-child(2) {
+  animation-delay: 35ms;
+}
+.screen .inner > :nth-child(3),
+.stack > :nth-child(3),
+.medal-grid > :nth-child(3),
+.tiles > :nth-child(3) {
+  animation-delay: 70ms;
+}
+.screen .inner > :nth-child(4),
+.stack > :nth-child(4),
+.medal-grid > :nth-child(4),
+.tiles > :nth-child(4) {
+  animation-delay: 105ms;
+}
+.screen .inner > :nth-child(5),
+.stack > :nth-child(5),
+.medal-grid > :nth-child(5) {
+  animation-delay: 140ms;
+}
+.screen .inner > :nth-child(6),
+.stack > :nth-child(6),
+.medal-grid > :nth-child(6) {
+  animation-delay: 175ms;
+}
+.screen .inner > :nth-child(n + 7),
+.stack > :nth-child(n + 7),
+.medal-grid > :nth-child(n + 7) {
+  animation-delay: 210ms;
+}
+
+/* Closing sheets and pages animate out (see ui.js EXIT_MS). */
+.overlay-wrap {
+  display: contents;
+}
+.overlay-wrap.closing {
+  pointer-events: none;
+}
+.overlay-wrap.closing .scrim {
+  animation: fade-out 0.26s var(--ease) forwards;
+}
+.overlay-wrap.closing .sheet,
+.overlay-wrap.closing .page.from-bottom {
+  animation: slide-down 0.26s var(--ease) forwards;
+}
+.overlay-wrap.closing .page.from-right {
+  animation: slide-out 0.26s var(--ease) forwards;
+}
+.welcome.leaving {
+  animation: welcome-out 0.26s var(--ease) forwards;
+  pointer-events: none;
+}
+.toast.leaving {
+  animation: toast-out 0.2s var(--ease) forwards;
+}
+
+/* Tap feedback */
+.chip,
+.mood,
+.days-pick button,
+.swatch,
+.emoji-grid button,
+.stepper button,
+.tab,
+.medal-tile,
+.cal-day,
+.streak-card {
+  transition: transform 0.16s var(--ease), background 0.2s, color 0.2s, opacity 0.2s;
+}
+.chip:active,
+.seg button:active,
+.mood:active,
+.days-pick button:active,
+.emoji-grid button:active,
+.stepper button:active,
+.tab:active,
+.cal-day:active {
+  transform: scale(0.92);
+}
+.swatch:active {
+  transform: scale(0.8);
+}
+button.item:active,
+.item button.item-main:active,
+.action:active,
+.goal-stat:active {
+  background: var(--bg-elev-2);
+}
+.goal-stat {
+  border-radius: 14px;
+  transition: background 0.2s;
+}
+.mood.on {
+  animation: mood-pop 0.4s var(--spring);
+}
+.days-pick button.on,
+.emoji-grid button.on {
+  animation: pop 0.32s var(--spring);
+}
+
+/* Check-off burst and floating +1 on goal rows */
+.goal {
+  position: relative;
+}
+.check {
+  position: relative;
+}
+.check.burst::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2.5px solid var(--c);
+  animation: burst 0.6s var(--ease) forwards;
+  pointer-events: none;
+}
+.float-plus {
+  position: absolute;
+  right: 22px;
+  top: 6px;
+  font-family: var(--font-round);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--c);
+  pointer-events: none;
+  animation: float-up 0.7s var(--ease) forwards;
+}
+.streak.bump {
+  animation: bump 0.6s var(--spring);
+}
+.ring-num,
+.count-num,
+.stepper .value {
+  animation: pop 0.38s var(--spring);
+}
+
+/* Rings draw themselves; bars and progress lines grow in. */
+.ring-arc {
+  animation: ring-draw 0.9s var(--ease) backwards;
+}
+.chart .bar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: grow-up 0.6s var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 16ms);
+}
+.progress-line i,
+.mini-bar i,
+.medal-progress i,
+.goal-bar > i {
+  transform-origin: left center;
+  animation: grow-x 0.8s var(--ease) backwards;
+}
+.cal-grid.from-right {
+  animation: from-right 0.3s var(--ease);
+}
+.cal-grid.from-left {
+  animation: from-left 0.3s var(--ease);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes from-right {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+}
+@keyframes from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes slide-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes slide-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes welcome-out {
+  to {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+}
+@keyframes tab-bounce {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.24) translateY(-2px);
+  }
+  100% {
+    transform: scale(1.08);
+  }
+}
+@keyframes mood-pop {
+  50% {
+    transform: scale(1.28);
+  }
+}
+@keyframes burst {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.8);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-24px) scale(1.1);
+  }
+}
+@keyframes bump {
+  35% {
+    transform: scale(1.32);
+  }
+}
+@keyframes ring-draw {
+  from {
+    stroke-dashoffset: var(--len);
+  }
+}
+@keyframes grow-up {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
 }
 
 /* ============================================================ motion */

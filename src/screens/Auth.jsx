@@ -1,5 +1,7 @@
 import { useState } from 'preact/hooks';
 import { APP_URL } from '../config.js';
+import { installed, installPrompt, promptInstall } from '../lib/install.js';
+import { isAndroid, isStandalone } from '../lib/platform.js';
 import { callFunction, cloudConfigured, supabase } from '../lib/supabase.js';
 import { recoveryMode, setUi, showToast } from '../lib/ui.js';
 import { Logo, Segmented } from '../components/controls.jsx';
@@ -143,11 +145,28 @@ export function Auth() {
               </button>
             )}
             <p class="auth-foot">Your goals sync to your account, so they stay safe even if you switch phones.</p>
+            <InstallHint />
           </>
         )}
       </div>
     </div>
   );
+}
+
+/** Android/Chrome: offer the real install prompt, or explain where the menu option is. */
+function InstallHint() {
+  if (isStandalone() || installed.value) return null;
+  if (installPrompt.value) {
+    return (
+      <button class="btn btn-secondary btn-block" style="margin-top:14px" onClick={promptInstall}>
+        📲 Install the app
+      </button>
+    );
+  }
+  if (isAndroid()) {
+    return <p class="auth-foot">Tip: tap ⋮ in Chrome, then “Install app”, to put Keep It Lit on your home screen.</p>;
+  }
+  return null;
 }
 
 export function SetPassword() {

@@ -27,6 +27,7 @@ export function BarChart({ data, selected, onSelect, height = 150 }) {
             <rect x={x - gap / 2} y="0" width={bw + gap} height={chartH} fill="transparent" />
             <rect
               class="bar"
+              style={{ '--i': i }}
               x={x}
               y={chartH - h}
               width={bw}

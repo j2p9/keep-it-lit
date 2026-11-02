@@ -5,7 +5,7 @@ import { isDueOn } from '../lib/schedule.js';
 import { daySummary } from '../lib/stats.js';
 import { nextMilestone } from '../lib/streaks.js';
 import { allGoals, awardState, clock, currentChallenge, currentGoals, lookup, profile, streaks, today } from '../lib/store.js';
-import { welcomeOpen } from '../lib/ui.js';
+import { closeWelcome, welcomeLeaving } from '../lib/ui.js';
 import { WeekStrip } from '../components/chrome.jsx';
 
 // Original encouragement, one per day.
@@ -73,10 +73,15 @@ export function Welcome() {
   const dueToday = current.filter((g) => isDueOn(g, t) || g.schedule === 'weekly');
   const line = LINES[Number(t.replace(/-/g, '')) % LINES.length];
   const emojis = (list) => list.map((g) => g.emoji).join(' ');
-  const close = () => (welcomeOpen.value = false);
 
   return (
-    <div class="welcome" data-time={time} role="dialog" aria-modal="true" aria-label="Your day at a glance">
+    <div
+      class={`welcome${welcomeLeaving.value ? ' leaving' : ''}`}
+      data-time={time}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Your day at a glance"
+    >
       <div class="welcome-glow" aria-hidden="true" />
       <div class="welcome-inner">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
@@ -187,7 +192,7 @@ export function Welcome() {
         </section>
 
         <p class="quote">“{line}”</p>
-        <button class="btn btn-primary btn-block" onClick={close}>
+        <button class="btn btn-primary btn-block" onClick={closeWelcome}>
           Let’s go 🔥
         </button>
       </div>

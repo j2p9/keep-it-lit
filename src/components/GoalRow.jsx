@@ -1,4 +1,4 @@
-import { useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { colorOf } from '../lib/colors.js';
 import { formatTime } from '../lib/dates.js';
 import { tick } from '../lib/haptics.js';
@@ -65,12 +65,24 @@ export function useLongPress(onLong, onTap, ms = 450) {
 }
 
 export function StreakBadge({ goal, s, done }) {
-  if (!s || s.current < 1) return null;
+  const current = s?.current || 0;
+  // Bump the badge when the streak grows.
+  const last = useRef(current);
+  const [bump, setBump] = useState(false);
+  useEffect(() => {
+    const grew = current > last.current;
+    last.current = current;
+    if (!grew) return undefined;
+    setBump(true);
+    const t = setTimeout(() => setBump(false), 650);
+    return () => clearTimeout(t);
+  }, [current]);
+  if (current < 1) return null;
   const risk = isAtRisk(goal, s, today.value, done, hoursLeftToday.value);
   const unit = s.unit === 'week' ? 'week' : 'day';
   return (
     <span
-      class={`streak${risk ? ' risk' : ''}${s.current >= 100 ? ' hundred' : ''}`}
+      class={`streak${risk ? ' risk' : ''}${s.current >= 100 ? ' hundred' : ''}${bump ? ' bump' : ''}`}
       aria-label={`${s.current} ${unit} streak${risk ? ', ends soon' : ''}`}
     >
       <span aria-hidden="true">{streakGlyph(s.current, risk)}</span>
@@ -89,6 +101,13 @@ export function GoalRow({ goal, day }) {
   const count = c?.count || 0;
   const isToday = day === today.value;
   const color = colorOf(goal.color);
+  // Short-lived tap effects: a ring burst on check-off, a floating "+1" on counted goals.
+  const [fx, setFx] = useState(null);
+  useEffect(() => {
+    if (!fx) return undefined;
+    const t = setTimeout(() => setFx(null), 700);
+    return () => clearTimeout(t);
+  }, [fx?.id]);
 
   const onTap = () => {
     tick();
@@ -96,6 +115,8 @@ export function GoalRow({ goal, day }) {
     const prev = tapGoal(goal, day);
     const after = todaySummary.peek();
     const row = lookup.peek()(goal.id, day);
+    if (counted && !skipped) setFx({ kind: 'plus', id: Date.now() });
+    else if (isDone(goal, row) && !done) setFx({ kind: 'burst', id: Date.now() });
     const undo = { label: 'Undo', fn: () => restoreCheckin(goal, day, prev) };
     if (isToday && after.perfect && !before.perfect) {
       confetti();
@@ -142,12 +163,19 @@ export function GoalRow({ goal, day }) {
       {counted && !done ? (
         <div class="check-count" aria-hidden="true">
           <Ring size={40} stroke={4} value={count / goal.target} color={color} />
-          <span class="count-num">{count || '+'}</span>
+          <span class="count-num" key={count}>
+            {count || '+'}
+          </span>
         </div>
       ) : (
-        <div class={`check${done ? ' on' : ''}`} aria-hidden="true">
+        <div class={`check${done ? ' on' : ''}${fx?.kind === 'burst' || (fx?.kind === 'plus' && done) ? ' burst' : ''}`} aria-hidden="true">
           <IconCheck size={20} />
         </div>
+      )}
+      {fx?.kind === 'plus' && (
+        <span class="float-plus" key={fx.id} aria-hidden="true">
+          +1
+        </span>
       )}
     </div>
   );

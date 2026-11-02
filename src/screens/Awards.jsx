@@ -1,6 +1,6 @@
 import { AWARD_BY_ID, AWARD_SECTIONS, AWARDS, awardIdOf, awardProgress } from '../lib/awards.js';
 import { daysBetween, endOfMonth, formatDay, formatMonth } from '../lib/dates.js';
-import { achievements, awardState, currentChallenge, goals, today } from '../lib/store.js';
+import { awardState, currentChallenge, goals, today } from '../lib/store.js';
 import { openOverlay } from '../lib/ui.js';
 import { defForKey } from '../components/chrome.jsx';
 import { Medal } from '../components/Medal.jsx';
@@ -9,12 +9,9 @@ import { Sheet } from '../components/Sheet.jsx';
 
 const shortDay = (d) => formatDay(d, { month: 'short', day: 'numeric', year: 'numeric' });
 
-/** Every earned award instance: stored ones plus any the history earns that haven't synced yet. */
+/** Every award your history currently earns. Undo the check-offs behind one and it goes away. */
 function earnedInstances() {
-  const all = new Map(awardState.value.earned);
-  for (const a of Object.values(achievements.value)) {
-    if (!all.has(a.award_key) || a.earned_on < all.get(a.award_key)) all.set(a.award_key, a.earned_on);
-  }
+  const all = awardState.value.earned;
   const byDef = new Map();
   for (const [key, day] of all) {
     const id = awardIdOf(key);

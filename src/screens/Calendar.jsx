@@ -23,6 +23,12 @@ export function Calendar() {
   const st = selected ? streaks.value.get(selected.id) : null;
   const first = firstDay(list);
   const touch = useRef(null);
+  // Slide the month in from the direction you moved.
+  const nav = useRef({ month: null, from: 'none' });
+  if (nav.current.month !== month) {
+    const before = nav.current.month;
+    nav.current = { month, from: before == null ? 'none' : month > before ? 'right' : 'left' };
+  }
 
   const days = [];
   for (let d = startOfWeek(month, ws); d <= endOfMonth(month) || days.length % 7; d = addDays(d, 1)) days.push(d);
@@ -114,7 +120,7 @@ export function Calendar() {
             </button>
           </div>
 
-          <div class="cal-grid">
+          <div class={`cal-grid from-${nav.current.from}`} key={month}>
             {weekdayLetters(ws).map((l, i) => (
               <div key={i} class="cal-wd" aria-hidden="true">
                 {l}

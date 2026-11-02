@@ -3,11 +3,14 @@ import { setUi, showToast, welcomeOpen } from './ui.js';
 
 const TABS = ['today', 'calendar', 'progress', 'awards'];
 
-/** Deep links from notifications: #today, #calendar, #progress, #awards or #welcome. */
+/** Deep links from notifications and Android shortcuts: #today, #calendar, #progress, #awards or #welcome. */
 export function openFromUrl(url) {
   const hash = new URL(url, location.href).hash.slice(1);
   if (hash === 'welcome') welcomeOpen.value = true;
   else if (TABS.includes(hash)) setUi({ tab: hash });
+  else return;
+  // Clear it so a later reload doesn't jump to the same place again.
+  if (location.hash.slice(1) === hash) history.replaceState(history.state, '', location.pathname + location.search);
 }
 
 export function registerServiceWorker() {

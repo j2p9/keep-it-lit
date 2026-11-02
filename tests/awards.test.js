@@ -97,6 +97,17 @@ describe('awards', () => {
     expect(earned.get('challenge:2026-11')).toBe(TODAY);
   });
 
+  it('takes an award away again when the check-offs behind it are undone', () => {
+    const a = goal({ start_on: TODAY });
+    const b = goal({ start_on: TODAY });
+    const done = evaluate([a, b], [[a, { [TODAY]: 1 }], [b, { [TODAY]: 1 }]]).earned;
+    expect(done.get('perfect-1')).toBe(TODAY);
+    expect(done.get('checkins-1')).toBe(TODAY);
+    const undone = evaluate([a, b], [[a, { [TODAY]: 0 }], [b, { [TODAY]: 0 }]]).earned;
+    expect(undone.has('perfect-1')).toBe(false);
+    expect(undone.has('checkins-1')).toBe(false);
+  });
+
   it('only reports awards that are not stored yet', () => {
     const earned = new Map([
       ['perfect-1', ago(3)],

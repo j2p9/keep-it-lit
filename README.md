@@ -13,6 +13,15 @@ A daily-goals app for your iPhone Home Screen. Check off goals in one tap, keep 
 
 Reminders only work from the Home Screen app (iOS 16.4 or later).
 
+## Put it on your Android phone
+
+1. Open the link above in **Chrome**.
+2. Tap **Install** on the banner in the app (or **⋮** → **Install app**).
+3. Open **Keep It Lit** from your home screen and create your account.
+4. Allow notifications when asked. On Android, reminders also work in the browser.
+
+Press and hold the app icon for shortcuts to Today, Calendar, Progress and Awards. The back button closes whatever is open, then returns to Today.
+
 ## What's inside
 
 - **Today:** one tap checks a goal off (or adds +1 to counted goals like 8 glasses of water). Press and hold a goal to skip a day, log an exact amount, edit it or see its stats. Every tap has Undo.
@@ -20,7 +29,7 @@ Reminders only work from the Home Screen app (iOS 16.4 or later).
 - **Daily welcome:** the first open each day shows yesterday's recap, your streaks, the week at a glance, the next milestone and today's plan.
 - **Calendar:** a month of progress rings. Filter by goal to see its streak chain, and tap any day to fill it in, set a mood or write a note.
 - **Progress:** Week / Month / Year completion charts, Highlights, habit strength and a 26-week heatmap per goal.
-- **Awards:** 39 medals across streaks, perfect days, milestones, consistency, monthly challenges, limited editions and a few secrets.
+- **Awards:** 39 medals across streaks, perfect days, milestones, consistency, monthly challenges, limited editions and a few secrets. They always match your history: undo the check-offs behind an award and it goes away.
 - **Reminders:** a daily check-in (3 PM), a streak saver (9 PM, only if goals are left) and an optional morning kickoff, plus a reminder per goal. Every time is adjustable.
 - **Never lose anything:** every change is saved on the phone first and synced to your account, so it works offline and on a new phone. There's also Export/Import backup.
 

@@ -31,6 +31,7 @@ export function Ring({ size = 120, stroke = 12, value = 0, color = 'url(#kil-fla
         {v > 0 && (
           <circle
             class="ring-arc"
+            style={{ '--len': c }}
             cx={mid}
             cy={mid}
             r={r}

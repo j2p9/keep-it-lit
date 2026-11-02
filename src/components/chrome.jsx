@@ -4,7 +4,7 @@ import { confetti } from '../lib/confetti.js';
 import { addDays, formatMonth, startOfWeek, weekdayLetters } from '../lib/dates.js';
 import { tick } from '../lib/haptics.js';
 import { daySummary } from '../lib/stats.js';
-import { allGoals, goals, lookup, markAwardsSeen, settings, today } from '../lib/store.js';
+import { allGoals, awardState, goals, lookup, markAwardsSeen, settings, today } from '../lib/store.js';
 import { celebrations, hideToast, setUi, toast, uiState } from '../lib/ui.js';
 import { Medal } from './Medal.jsx';
 import { IconCalendar, IconChart, IconCheck, IconFlame, IconMedal } from './icons.jsx';
@@ -18,23 +18,30 @@ const TABS = [
 
 export function TabBar() {
   const tab = uiState.value.tab;
+  const index = Math.max(
+    0,
+    TABS.findIndex(([key]) => key === tab),
+  );
   return (
     <nav class="tabbar" aria-label="Main">
-      {TABS.map(([key, label, Icon]) => (
-        <button
-          key={key}
-          class={`tab${tab === key ? ' on' : ''}`}
-          aria-current={tab === key ? 'page' : undefined}
-          onClick={() => {
-            if (tab === key) return;
-            tick();
-            setUi({ tab: key });
-          }}
-        >
-          <Icon size={25} sw={tab === key ? 2.3 : 1.9} />
-          {label}
-        </button>
-      ))}
+      <div class="tabs" style={{ '--i': index }}>
+        <span class="tab-pill" aria-hidden="true" />
+        {TABS.map(([key, label, Icon]) => (
+          <button
+            key={key}
+            class={`tab${tab === key ? ' on' : ''}`}
+            aria-current={tab === key ? 'page' : undefined}
+            onClick={() => {
+              if (tab === key) return;
+              tick();
+              setUi({ tab: key });
+            }}
+          >
+            <Icon size={25} sw={tab === key ? 2.3 : 1.9} />
+            {label}
+          </button>
+        ))}
+      </div>
     </nav>
   );
 }
@@ -43,7 +50,7 @@ export function Toast() {
   const t = toast.value;
   if (!t) return null;
   return (
-    <div class="toast" role="status" aria-live="polite" key={t.id}>
+    <div class={`toast${t.leaving ? ' leaving' : ''}`} role="status" aria-live="polite" key={t.id}>
       <span class="msg">{t.text}</span>
       {t.action && (
         <button
@@ -85,7 +92,9 @@ export function defForKey(key) {
 
 /** Full-screen moment for each newly earned award, one at a time. */
 export function Celebration() {
-  const queue = celebrations.value.filter((c) => defForKey(c.award_key));
+  // Skip anything undone before its moment came (e.g. checked off, then unchecked).
+  const earned = awardState.value.earned;
+  const queue = celebrations.value.filter((c) => defForKey(c.award_key) && earned.has(c.award_key));
   const item = queue[0];
   useEffect(() => {
     if (!item) return;
@@ -105,7 +114,7 @@ export function Celebration() {
     celebrations.value = [];
   };
   return (
-    <div class="celebrate" role="dialog" aria-modal="true" aria-label={`New award: ${def.title}`}>
+    <div class="celebrate" key={item.award_key} role="dialog" aria-modal="true" aria-label={`New award: ${def.title}`}>
       <Medal def={def} size={176} />
       <div class="kicker">New award</div>
       <h2>{def.title}</h2>

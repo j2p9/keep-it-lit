@@ -46,6 +46,8 @@ export function GoalEditor({ goalId, template, draft, onClose }) {
   useEffect(() => {
     setUi({ draft: { goalId: goalId || null, f, prior } });
   }, [f, prior]);
+  // Closing by any route (Cancel, Save, Android back) ends the draft.
+  useEffect(() => () => setUi({ draft: null }), []);
   const close = () => {
     setUi({ draft: null });
     onClose();

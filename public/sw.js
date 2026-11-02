@@ -117,8 +117,10 @@ self.addEventListener('push', (event) => {
       await self.registration.showNotification(title, {
         body: data.body || 'Time to check in on your goals 🔥',
         icon: './icons/icon-192.png',
-        badge: './icons/badge-72.png',
+        badge: './icons/badge-72.png', // Android status-bar icon
         tag: data.tag || 'keep-it-lit',
+        renotify: true,
+        vibrate: [60, 40, 60], // Android
         data: { url: data.url || './#today' },
       });
       if (typeof data.badge === 'number' && self.navigator.setAppBadge) {

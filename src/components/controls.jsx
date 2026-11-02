@@ -1,3 +1,5 @@
+import { tick } from '../lib/haptics.js';
+
 export const Switch = ({ on, onChange, label }) => (
   <button
     type="button"
@@ -9,9 +11,15 @@ export const Switch = ({ on, onChange, label }) => (
   />
 );
 
+/** iOS-style segmented control with a thumb that slides to the chosen option. */
 export function Segmented({ options, value, onChange, label }) {
+  const index = Math.max(
+    0,
+    options.findIndex(([v]) => v === value),
+  );
   return (
-    <div class="seg" role="radiogroup" aria-label={label}>
+    <div class="seg" role="radiogroup" aria-label={label} style={{ '--n': options.length, '--i': index }}>
+      <span class="seg-thumb" aria-hidden="true" />
       {options.map(([v, text]) => (
         <button
           key={v}
@@ -19,7 +27,11 @@ export function Segmented({ options, value, onChange, label }) {
           role="radio"
           aria-checked={v === value}
           class={v === value ? 'on' : ''}
-          onClick={() => onChange(v)}
+          onClick={() => {
+            if (v === value) return;
+            tick();
+            onChange(v);
+          }}
         >
           {text}
         </button>
@@ -34,7 +46,7 @@ export function Stepper({ value, onChange, min = 0, max = 999, label }) {
       <button type="button" aria-label="Less" disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}>
         −
       </button>
-      <div class="value" aria-live="polite">
+      <div class="value" aria-live="polite" key={value}>
         {value}
       </div>
       <button type="button" aria-label="More" disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}>
