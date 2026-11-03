@@ -54,6 +54,17 @@ describe('Goals on a day', () => {
     expect(goalsForDay([gone], d(-4)).due).toEqual([gone]);
   });
 
+  it('keeps a weekly goal with a carried-over streak in its week on every earlier day', () => {
+    // Added today, "already doing this" for 4 weeks: history starts 4 weeks back.
+    const tennis = goal({ schedule: 'weekly', per_week: 2, start_on: d(-28), added_on: TODAY });
+    const { lookup } = checkins([[tennis, { [d(-28)]: 1, [d(-27)]: 1 }]]);
+    for (const day of [d(-1), d(-10), d(-27), d(-28)]) {
+      expect(goalsForDay([tennis], day, lookup)).toMatchObject({ weekly: [tennis], later: [] });
+    }
+    // Before its history starts it can still be filled in.
+    expect(goalsForDay([tennis], d(-29), lookup).later).toEqual([tennis]);
+  });
+
   it('lists a filled-in goal normally, and its unfilled days as added later', () => {
     const g = goal({ start_on: d(-3), added_on: TODAY });
     const { lookup } = checkins([[g, { [d(-3)]: 1 }]]);

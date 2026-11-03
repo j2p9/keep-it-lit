@@ -66,7 +66,8 @@ export function useLongPress(onLong, onTap, ms = 450) {
   };
 }
 
-export function StreakBadge({ goal, s, done }) {
+/** The goal's current streak. `live` (today only) adds the ⏳ warning when it's about to end. */
+export function StreakBadge({ goal, s, done, live = true }) {
   const current = s?.current || 0;
   // Bump the badge when the streak grows.
   const last = useRef(current);
@@ -80,7 +81,7 @@ export function StreakBadge({ goal, s, done }) {
     return () => clearTimeout(t);
   }, [current]);
   if (current < 1) return null;
-  const risk = isAtRisk(goal, s, today.value, done, hoursLeftToday.value);
+  const risk = live && isAtRisk(goal, s, today.value, done, hoursLeftToday.value);
   const unit = s.unit === 'week' ? 'week' : 'day';
   return (
     <span
@@ -179,7 +180,7 @@ export function GoalRow({ goal, day, sub: subText }) {
           </div>
         )}
       </div>
-      {isToday && <StreakBadge goal={goal} s={s} done={done} />}
+      <StreakBadge goal={goal} s={s} done={done} live={isToday} />
       {counted && !done ? (
         <div class="check-count" aria-hidden="true">
           <Ring size={40} stroke={4} value={count / goal.target} color={color} />

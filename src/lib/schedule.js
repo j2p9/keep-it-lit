@@ -32,7 +32,8 @@ export const scheduledOn = (goal, day) => goal.schedule !== 'weekdays' || (goal.
 
 /**
  * What a day's list shows: goals due that day, weekly goals, and goals added later that can
- * still be filled in for that day (until they are, they don't count toward it).
+ * still be filled in for that day (until they are, they don't count toward it). Weekly goals
+ * count by the week, so once their history has started they always show as weekly goals.
  */
 export function goalsForDay(goals, day, lookup) {
   const due = [];
@@ -40,7 +41,8 @@ export function goalsForDay(goals, day, lookup) {
   const later = [];
   for (const g of goals) {
     if (g.deleted_at || (g.archived_on && day >= g.archived_on)) continue;
-    if (day < g.start_on || (day < addedOn(g) && !isLogged(lookup?.(g.id, day)))) {
+    const unfilled = g.schedule !== 'weekly' && day < addedOn(g) && !isLogged(lookup?.(g.id, day));
+    if (day < g.start_on || unfilled) {
       if (scheduledOn(g, day)) later.push(g);
     } else if (g.schedule === 'weekly') weekly.push(g);
     else if (isDueOn(g, day)) due.push(g);
