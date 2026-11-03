@@ -50,12 +50,23 @@ export function logicalDate(now = new Date(), dayEndHour = 0) {
 
 export const todayKey = (now = new Date(), dayEndHour = 0) => toKey(logicalDate(now, dayEndHour));
 
-/** Hours left before the current (logical) day ends. */
-export function hoursLeft(now = new Date(), dayEndHour = 0) {
-  const day = logicalDate(now, dayEndHour);
-  const end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, dayEndHour, 0, 0, 0);
-  return (end - now) / 3600000;
+/**
+ * The app's today. Between midnight and a late day-end hour it's still the previous date,
+ * unless the new day was started early: `earlyDay` is the calendar date it was started on.
+ */
+export function effectiveToday(now = new Date(), dayEndHour = 0, earlyDay = null) {
+  const logical = todayKey(now, dayEndHour);
+  return earlyDay && earlyDay > logical && earlyDay <= toKey(now) ? earlyDay : logical;
 }
+
+/** When a day is over: the midnight after it, or the day-end hour the next morning. */
+export function dayEndsAt(key, dayEndHour = 0) {
+  const d = fromKey(key);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, dayEndHour, 0, 0, 0);
+}
+
+/** Hours left before the current (logical) day ends. */
+export const hoursLeft = (now = new Date(), dayEndHour = 0) => (dayEndsAt(todayKey(now, dayEndHour), dayEndHour) - now) / 3600000;
 
 export function* eachDay(from, to) {
   for (let k = from; k <= to; k = addDays(k, 1)) yield k;

@@ -3,7 +3,7 @@
 // pressing back consumes it, we close the top thing, and re-arm if more is still open.
 import { effect } from '@preact/signals';
 import { ready, session } from './store.js';
-import { closeOverlay, closeWelcome, hasOpenOverlay, setUi, uiState, welcomeLeaving, welcomeOpen } from './ui.js';
+import { closeOverlay, closeWelcome, hasOpenOverlay, setUi, uiState, viewDay, welcomeLeaving, welcomeOpen } from './ui.js';
 
 let armed = false;
 let ignore = 0;
@@ -11,7 +11,9 @@ let pending = false;
 
 const welcomeShown = () => welcomeOpen.value && !welcomeLeaving.value;
 const closable = () =>
-  hasOpenOverlay() || welcomeShown() || (session.value.status === 'signedIn' && ready.value && uiState.value.tab !== 'today');
+  hasOpenOverlay() ||
+  welcomeShown() ||
+  (session.value.status === 'signedIn' && ready.value && (uiState.value.tab !== 'today' || viewDay.value !== null));
 
 // Runs once things settle, so closing one sheet and opening the next in the same tap
 // (templates → goal editor) doesn't drop our entry and then step back out of the app.
@@ -48,5 +50,6 @@ export function installBackNavigation() {
     if (hasOpenOverlay()) closeOverlay();
     else if (welcomeShown()) closeWelcome();
     else if (uiState.peek().tab !== 'today') setUi({ tab: 'today' });
+    else if (viewDay.peek() !== null) viewDay.value = null;
   });
 }

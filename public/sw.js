@@ -1,5 +1,5 @@
-// Keep It Lit service worker: works offline, shows reminders, opens the app from a notification.
-const CACHE = 'kil-v2';
+// Keep It Lit service worker: opens instantly and offline, shows reminders, opens the app from a notification.
+const CACHE = 'kil-v3';
 const SHELL = [
   './',
   './index.html',
@@ -9,12 +9,15 @@ const SHELL = [
   './icons/favicon.svg?v=2',
 ];
 
-// Cache the app's built files (named in index.html) and drop old versions.
-async function cacheApp(html) {
+const assetsOf = (html) => [...new Set([...html.matchAll(/(?:src|href)="\.?\/?(assets\/[^"]+)"/g)].map((m) => `./${m[1]}`))];
+
+// Cache the app's built files (named in index.html). Files of the version before are kept too,
+// since the app that was just opened from the cache may still be loading them.
+async function cacheApp(html, previousHtml = '') {
   const cache = await caches.open(CACHE);
-  const assets = [...new Set([...html.matchAll(/(?:src|href)="\.?\/?(assets\/[^"]+)"/g)].map((m) => `./${m[1]}`))];
-  await Promise.all(assets.map((url) => cache.match(url).then((hit) => hit || cache.add(url)).catch(() => {})));
-  const keep = new Set(assets.map((u) => new URL(u, self.registration.scope).href));
+  const assets = assetsOf(html);
+  await Promise.all(assets.map((url) => cache.match(url, { ignoreVary: true }).then((hit) => hit || cache.add(url)).catch(() => {})));
+  const keep = new Set([...assets, ...assetsOf(previousHtml)].map((u) => new URL(u, self.registration.scope).href));
   for (const req of await cache.keys()) {
     if (req.url.includes('/assets/') && !keep.has(req.url)) await cache.delete(req);
   }
@@ -51,21 +54,20 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return; // Supabase and other APIs go straight to the network
 
   if (req.mode === 'navigate') {
-    // Fresh page when online (so updates arrive), cached page when offline or slow.
+    // Open instantly from the cache, online or not, and fetch the newest page in the background
+    // for next time. The app offers "Update" as soon as it sees a newer version.
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE);
+        const cached = await cache.match('./index.html', { ignoreVary: true });
+        const previousHtml = cached ? await cached.clone().text() : '';
         const network = fetch(req).then(async (res) => {
           if (res.ok) {
             await cache.put('./index.html', res.clone());
-            event.waitUntil(res.clone().text().then(cacheApp));
+            await cacheApp(await res.clone().text(), previousHtml);
           }
           return res;
         });
-        const timeout = new Promise((resolve) => setTimeout(resolve, 3500));
-        const fast = await Promise.race([network.catch(() => null), timeout]);
-        if (fast) return fast;
-        const cached = await cache.match('./index.html');
         if (cached) {
           event.waitUntil(network.catch(() => {}));
           return cached;
@@ -77,9 +79,10 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.pathname.includes('/assets/')) {
-    // Built files have content hashes in their names, so a cached copy is always right.
+    // Built files have content hashes in their names, so a cached copy is always right. Vary is
+    // ignored: module scripts send an Origin header that the cached copy was stored without.
     event.respondWith(
-      caches.match(req).then(
+      caches.match(req, { ignoreVary: true }).then(
         (hit) =>
           hit ||
           fetch(req).then((res) => {
@@ -96,7 +99,7 @@ self.addEventListener('fetch', (event) => {
 
   // Icons, manifest, version file: cached copy now, refreshed in the background.
   event.respondWith(
-    caches.match(req).then((hit) => {
+    caches.match(req, { ignoreVary: true }).then((hit) => {
       const network = fetch(req)
         .then((res) => {
           if (res.ok && !url.pathname.endsWith('version.json')) {

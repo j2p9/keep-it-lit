@@ -21,6 +21,43 @@ export const isWeekly = (goal) => goal.schedule === 'weekly';
 
 export const isDone = (goal, c) => !!c && !c.skipped && c.count >= goal.target;
 
+/** The day a goal was added. Its start can move earlier when earlier days are filled in. */
+export const addedOn = (goal) => goal.added_on || goal.start_on;
+
+/** A check-in that records something: done, partly done, or skipped. */
+export const isLogged = (c) => Boolean(c && (c.skipped || c.count > 0));
+
+/** Whether the goal's schedule includes `day`, ignoring when it started. Weekly goals: any day. */
+export const scheduledOn = (goal, day) => goal.schedule !== 'weekdays' || (goal.days || ALL_DAYS).includes(weekday(day));
+
+/**
+ * What a day's list shows: goals due that day, weekly goals, and goals added later that can
+ * still be filled in for that day (until they are, they don't count toward it).
+ */
+export function goalsForDay(goals, day, lookup) {
+  const due = [];
+  const weekly = [];
+  const later = [];
+  for (const g of goals) {
+    if (g.deleted_at || (g.archived_on && day >= g.archived_on)) continue;
+    if (day < g.start_on || (day < addedOn(g) && !isLogged(lookup?.(g.id, day)))) {
+      if (scheduledOn(g, day)) later.push(g);
+    } else if (g.schedule === 'weekly') weekly.push(g);
+    else if (isDueOn(g, day)) due.push(g);
+  }
+  return { due, weekly, later };
+}
+
+/**
+ * Where a goal's history starts: the day it was added, or the earliest day before that when it
+ * was done (filled in afterwards).
+ */
+export function historyStart(goal, loggedDays) {
+  let start = addedOn(goal);
+  for (const d of loggedDays) if (d < start) start = d;
+  return start;
+}
+
 export const progressOf = (goal, c) => (!c || c.skipped ? 0 : Math.min(1, c.count / goal.target));
 
 export function scheduleLabel(goal) {

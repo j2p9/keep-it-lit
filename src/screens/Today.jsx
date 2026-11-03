@@ -1,11 +1,30 @@
-import { formatDay } from '../lib/dates.js';
+import { useRef } from 'preact/hooks';
+import { addDays, daysBetween, formatDay, formatTime, startOfWeek } from '../lib/dates.js';
 import { tick } from '../lib/haptics.js';
 import { installed, installPrompt, promptInstall } from '../lib/install.js';
 import { isAndroid, isIOS, isStandalone } from '../lib/platform.js';
-import { isDone, isDueOn, isWeekly, TIME_SECTIONS } from '../lib/schedule.js';
+import { addedOn, goalsForDay, isDone, TIME_SECTIONS } from '../lib/schedule.js';
+import { daySummary } from '../lib/stats.js';
 import { isAtRisk } from '../lib/streaks.js';
-import { backupState, currentGoals, deviceReady, hoursLeftToday, lookup, notes, setNote, streaks, today, todaySummary } from '../lib/store.js';
-import { openOverlay, setUi, showToast, uiState, welcomeOpen } from '../lib/ui.js';
+import {
+  allGoals,
+  backupState,
+  currentGoals,
+  deviceReady,
+  hoursLeftToday,
+  lookup,
+  nextDay,
+  notes,
+  restPlan,
+  restRule,
+  setNote,
+  settings,
+  startNextDay,
+  streaks,
+  today,
+} from '../lib/store.js';
+import { openOverlay, setUi, showToast, uiState, viewDay, welcomeOpen } from '../lib/ui.js';
+import { DayStrip } from '../components/DayStrip.jsx';
 import { GoalRow } from '../components/GoalRow.jsx';
 import { HealthCard } from '../components/HealthCard.jsx';
 import { Ring } from '../components/Ring.jsx';
@@ -26,31 +45,73 @@ function timeLeft(hours) {
   return `${Math.round(hours)}h`;
 }
 
+/** "Yesterday", "Monday" (this past week) or "Oct 28". */
+function dayName(day, t) {
+  const ago = daysBetween(day, t);
+  if (ago === 1) return 'Yesterday';
+  if (ago < 7) return formatDay(day, { weekday: 'long' });
+  return formatDay(day, { month: 'short', day: 'numeric' });
+}
+
 export function Today() {
   const t = today.value;
+  // Earlier days open from the week strip, a swipe, or the Android back button's history.
+  const day = viewDay.value && viewDay.value < t ? viewDay.value : t;
+  const isToday = day === t;
   const goals = currentGoals.value;
-  const sum = todaySummary.value;
   const st = streaks.value;
   const lk = lookup.value;
   const hours = hoursLeftToday.value;
-  const due = goals.filter((g) => isDueOn(g, t));
-  const weekly = goals.filter(isWeekly);
-  const atRisk = goals.filter((g) => isAtRisk(g, st.get(g.id), t, isDone(g, lk(g.id, t)), hours));
+  const { due, weekly, later } = goalsForDay(allGoals.value, day, lk);
+  const sum = daySummary(allGoals.value, lk, day);
+  const atRisk = isToday ? goals.filter((g) => isAtRisk(g, st.get(g.id), t, isDone(g, lk(g.id, t)), hours)) : [];
   const alive = goals.filter((g) => st.get(g.id)?.current > 0).length;
-  const protectedCount = goals.filter((g) => st.get(g.id)?.freezes > 0 && st.get(g.id)?.current > 0).length;
+  const protectedCount = isToday ? goals.filter((g) => st.get(g.id)?.freezes > 0 && st.get(g.id)?.current > 0).length : 0;
   const left = sum.due - sum.done;
+  const name = isToday ? 'Today' : dayName(day, t);
+  const ws = settings.value.weekStart;
+  const sameWeek = startOfWeek(day, ws) === startOfWeek(t, ws);
+
+  const goTo = (d) => {
+    viewDay.value = d >= t ? null : d;
+  };
+  const touch = useRef(null);
+  const onTouchStart = (e) => (touch.current = [e.touches[0].clientX, e.touches[0].clientY]);
+  const onTouchEnd = (e) => {
+    if (!touch.current) return;
+    const dx = e.changedTouches[0].clientX - touch.current[0];
+    const dy = e.changedTouches[0].clientY - touch.current[1];
+    touch.current = null;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+    if (dx > 0) goTo(addDays(day, -1));
+    else if (!isToday) goTo(addDays(day, 1));
+    else return;
+    tick();
+  };
 
   let big;
   let small;
   if (sum.due === 0) {
     big = 'Rest day 🌿';
-    small = weekly.length ? 'Nothing is due today. Your weekly goals are below.' : 'Nothing is scheduled today. Enjoy it.';
+    if (later.length && !isToday) small = 'Nothing was due. Goals you added later are below.';
+    else if (weekly.length) small = isToday ? 'Nothing is due today. Your weekly goals are below.' : 'Nothing was due. Your weekly goals are below.';
+    else small = isToday ? 'Nothing is scheduled today. Enjoy it.' : 'Nothing was scheduled that day.';
   } else if (sum.perfect) {
     big = 'All done! 🔥';
-    small = alive ? `${plural(alive, 'streak')} kept lit today.` : 'Every goal checked off. Great work.';
+    if (!isToday) small = 'Everything was checked off that day.';
+    else small = alive ? `${plural(alive, 'streak')} kept lit today.` : 'Every goal checked off. Great work.';
+  } else if (left === due.filter((g) => lk(g.id, day)?.skip === 'rest').length) {
+    // Everything left was taken off with a rest day.
+    big = 'Rest day 🛌';
+    small = isToday ? 'Your streaks keep going. Back at it tomorrow.' : 'A rest day covered this day.';
+  } else if (!isToday) {
+    big = `${left} not done`;
+    small = 'Tap what you did that day. Only check off what you really did.';
   } else if (atRisk.length) {
     big = `${left} to go`;
-    small = `⏳ ${plural(atRisk.length, 'streak')} end in ${timeLeft(hours)}. You’ve got this.`;
+    small = restPlan.value.bank
+      ? `⏳ ${timeLeft(hours)} left today. Miss it and a rest day covers you, but you’ve got this.`
+      : `⏳ ${plural(atRisk.length, 'streak')} end in ${timeLeft(hours)}. You’ve got this.`;
   } else {
     big = `${left} to go`;
     small = sum.done
@@ -61,14 +122,25 @@ export function Today() {
   }
 
   return (
-    <main class="screen" aria-label="Today">
+    <main class="screen" aria-label={isToday ? 'Today' : name} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <div class="inner">
         <header class="page-head">
-          <button class="head-title" onClick={() => (welcomeOpen.value = true)} aria-label="Open your daily summary">
-            <div class="eyebrow">{formatDay(t, { weekday: 'long', month: 'short', day: 'numeric' })}</div>
-            <h1 class="title">Today</h1>
+          <button
+            class="head-title"
+            onClick={() => (isToday ? (welcomeOpen.value = true) : goTo(t))}
+            aria-label={isToday ? 'Open your daily summary' : 'Back to today'}
+          >
+            <div class="eyebrow">{formatDay(day, { weekday: 'long', month: 'short', day: 'numeric' })}</div>
+            <h1 class="title" key={day}>
+              {name}
+            </h1>
           </button>
           <div class="head-actions">
+            {!isToday && (
+              <button class="btn btn-secondary btn-small today-btn" onClick={() => goTo(t)}>
+                Today
+              </button>
+            )}
             <button class="icon-btn" aria-label="Add a goal" onClick={() => openOverlay('templates')}>
               <IconPlus size={22} />
             </button>
@@ -78,9 +150,11 @@ export function Today() {
           </div>
         </header>
 
-        <InstallBanner />
+        {isToday && <NextDayBanner />}
+        {isToday && <InstallBanner />}
+        {allGoals.value.length > 0 && <DayStrip day={day} onPick={goTo} />}
 
-        {!goals.length ? (
+        {!(isToday ? goals.length : allGoals.value.length) ? (
           <div class="card empty">
             <div class="empty-emoji" aria-hidden="true">
               🎯
@@ -93,7 +167,7 @@ export function Today() {
           </div>
         ) : (
           <>
-            <section class="card hero" aria-label="Today’s progress">
+            <section class="card hero" aria-label={isToday ? 'Today’s progress' : `${name}’s progress`}>
               <Ring size={128} stroke={14} value={sum.fill ?? 0} glow label={`${sum.done} of ${sum.due} goals done`}>
                 {sum.due ? (
                   <>
@@ -112,20 +186,30 @@ export function Today() {
               <div class="hero-text">
                 <div class="hero-big">{big}</div>
                 <div class="hero-sub">{small}</div>
-                {protectedCount > 0 && (
-                  <div class="hero-chips">
+                <div class="hero-chips">
+                  {restRule.value.on && (
+                    <button class="pill chip-rest" onClick={() => openOverlay('dayOff', { day })}>
+                      🛌 {plural(restPlan.value.bank, 'rest day')}
+                    </button>
+                  )}
+                  {!restRule.value.on && sum.due - sum.done > 0 && (
+                    <button class="pill" onClick={() => openOverlay('dayOff', { day })}>
+                      🤒 Sick day?
+                    </button>
+                  )}
+                  {protectedCount > 0 && (
                     <span class="pill chip-ice">
                       ❄️ {protectedCount === alive ? 'All streaks' : plural(protectedCount, 'streak')} protected
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </section>
 
             {TIME_SECTIONS.map(({ key, label, icon }) => {
               const list = due.filter((g) => g.time_of_day === key);
               if (!list.length) return null;
-              const doneCount = list.filter((g) => isDone(g, lk(g.id, t))).length;
+              const doneCount = list.filter((g) => isDone(g, lk(g.id, day))).length;
               return (
                 <section key={key} aria-label={label}>
                   <h2 class="section-title">
@@ -137,7 +221,7 @@ export function Today() {
                   </h2>
                   <div class="stack">
                     {list.map((g) => (
-                      <GoalRow key={g.id} goal={g} day={t} />
+                      <GoalRow key={g.id} goal={g} day={day} />
                     ))}
                   </div>
                 </section>
@@ -145,28 +229,78 @@ export function Today() {
             })}
 
             {weekly.length > 0 && (
-              <section aria-label="This week">
+              <section aria-label={sameWeek ? 'This week' : 'That week'}>
                 <h2 class="section-title">
-                  <span aria-hidden="true">📅</span>This week
+                  <span aria-hidden="true">📅</span>
+                  {sameWeek ? 'This week' : 'That week'}
                 </h2>
                 <div class="stack">
                   {weekly.map((g) => (
-                    <GoalRow key={g.id} goal={g} day={t} />
+                    <GoalRow key={g.id} goal={g} day={day} />
                   ))}
                 </div>
               </section>
             )}
 
-            <HealthCard day={t} />
-            <BackupNudge />
-            <MoodCard day={t} />
+            {later.length > 0 && (
+              <section aria-label="Added later">
+                <h2 class="section-title">
+                  <span aria-hidden="true">🆕</span>Added later
+                </h2>
+                <div class="stack later">
+                  {later.map((g) => (
+                    <GoalRow
+                      key={g.id}
+                      goal={g}
+                      day={day}
+                      sub={`Added ${formatDay(addedOn(g), { month: 'short', day: 'numeric' })} · tap if you did it`}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <HealthCard day={day} />
+            {isToday && <BackupNudge />}
+            <MoodCard day={day} />
             <p class="faint" style="text-align:center;font-size:13px;margin-top:18px">
-              Tip: press and hold a goal to skip it, edit it, or log an exact amount.
+              {isToday
+                ? 'Tip: swipe right or tap a day above to fill in a day you missed. Press and hold a goal for more.'
+                : 'Only check off what you really did. You’re the one it’s for.'}
             </p>
           </>
         )}
       </div>
     </main>
+  );
+}
+
+/** Night owls: between midnight and the day-end hour, offer to start the new date now. */
+function NextDayBanner() {
+  const next = nextDay.value;
+  if (!next) return null;
+  const end = formatTime(`${String(settings.value.dayEndHour).padStart(2, '0')}:00`);
+  const weekdayOf = (d) => formatDay(d, { weekday: 'long' });
+  return (
+    <div class="banner" role="note">
+      <span style="font-size:24px" aria-hidden="true">
+        🌙
+      </span>
+      <div>
+        <b>It’s past midnight</b>
+        Your day ends at {end}, so it’s still {weekdayOf(today.value)} here.
+      </div>
+      <button
+        class="btn btn-primary btn-small"
+        onClick={() => {
+          tick();
+          startNextDay();
+          showToast(`☀️ ${weekdayOf(next)} has started`);
+        }}
+      >
+        Start {formatDay(next, { weekday: 'short' })}
+      </button>
+    </div>
   );
 }
 

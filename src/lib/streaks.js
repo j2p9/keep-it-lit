@@ -13,14 +13,42 @@ export const WEEK_MILESTONES = [4, 12, 26, 52];
 export const checkinKey = (goalId, day) => `${goalId}|${day}`;
 export const makeLookup = (checkins) => (goalId, day) => checkins[checkinKey(goalId, day)];
 
+const NO_REST = { days: new Set(), weeks: new Set() };
+
+/**
+ * One week of a weekly goal: check-offs, how many it needs, and skipped (sick) days. A week
+ * marked sick needs nothing.
+ */
+export function weekProgress(goal, lookup, wk, lastDay, mark) {
+  let done = 0;
+  let skipped = 0;
+  const doneDays = [];
+  for (let i = 0; i < 7; i += 1) {
+    const day = addDays(wk, i);
+    if (day < goal.start_on || day > lastDay) continue;
+    const c = lookup(goal.id, day);
+    if (c?.skipped) skipped += 1;
+    else if (isDone(goal, c)) {
+      done += 1;
+      doneDays.push(day);
+    }
+  }
+  // A goal that starts mid-week only needs what is still possible that week.
+  const open = wk < goal.start_on ? 7 - daysBetween(wk, goal.start_on) : 7;
+  const required = mark === 'sick' ? 0 : Math.max(0, Math.min(goal.per_week, open) - skipped);
+  return { done, required, skipped, doneDays, mark: mark || null };
+}
+
 /**
  * Replays one goal's history and returns its streak. Day statuses:
- * done | frozen | skipped | missed | off | pending (today, not done yet).
- * An unfinished today is pending, so the streak only breaks once the day is over.
+ * done | rest | frozen | skipped | missed | off | pending (today, not done yet).
+ * An unfinished today is pending, so the streak only breaks once the day is over. Days (and
+ * weeks) in `opts.rest` were covered by a banked rest day; freezes are the backup after that.
  */
 export function goalStreak(goal, lookup, today, opts = {}) {
   if (goal.schedule === 'weekly') return weeklyStreak(goal, lookup, today, opts);
   const freezes = opts.freezes !== false;
+  const rest = opts.rest || NO_REST;
   const last = goal.archived_on ? minKey(addDays(goal.archived_on, -1), today) : today;
   const status = new Map();
   const milestones = {};
@@ -31,6 +59,7 @@ export function goalStreak(goal, lookup, today, opts = {}) {
   let brokeBig = false;
   let comebackOn = null;
   let firstFrozen = null;
+  let firstRest = null;
 
   for (let day = goal.start_on; day <= last; day = addDays(day, 1)) {
     if (!isDueOn(goal, day)) {
@@ -38,7 +67,8 @@ export function goalStreak(goal, lookup, today, opts = {}) {
       continue;
     }
     const c = lookup(goal.id, day);
-    if (c?.skipped) {
+    // A sick day (or an older skip) pauses the streak for free.
+    if (c?.skipped && c.skip !== 'rest') {
       status.set(day, 'skipped');
       continue;
     }
@@ -49,6 +79,9 @@ export function goalStreak(goal, lookup, today, opts = {}) {
       for (const m of STREAK_MILESTONES) if (current === m && !milestones[m]) milestones[m] = day;
       if (brokeBig && current === 7 && !comebackOn) comebackOn = day;
       status.set(day, 'done');
+    } else if (rest.days.has(day)) {
+      firstRest ??= day;
+      status.set(day, 'rest');
     } else if (day === today) {
       status.set(day, 'pending');
       continue;
@@ -64,12 +97,14 @@ export function goalStreak(goal, lookup, today, opts = {}) {
     timeline.push([day, current]);
   }
 
-  return { goalId: goal.id, unit: 'day', current, best, freezes: bank, status, milestones, comebackOn, firstFrozen, timeline };
+  return { goalId: goal.id, unit: 'day', current, best, freezes: bank, status, milestones, comebackOn, firstFrozen, firstRest, timeline };
 }
 
 function weeklyStreak(goal, lookup, today, opts) {
   const freezes = opts.freezes !== false;
   const weekStart = opts.weekStart ?? 0;
+  const rest = opts.rest || NO_REST;
+  const weekMark = opts.weekMark || (() => null);
   const status = new Map();
   const weeks = new Map();
   const milestones = {};
@@ -79,29 +114,17 @@ function weeklyStreak(goal, lookup, today, opts) {
   let brokeBig = false;
   let comebackOn = null;
   let firstFrozen = null;
+  let firstRest = null;
   const lastDay = goal.archived_on ? minKey(addDays(goal.archived_on, -1), today) : today;
   const thisWeek = startOfWeek(today, weekStart);
 
   if (lastDay >= goal.start_on) {
     for (let wk = startOfWeek(goal.start_on, weekStart); wk <= lastDay; wk = addDays(wk, 7)) {
-      let done = 0;
-      let skipped = 0;
-      const doneDays = [];
-      for (let i = 0; i < 7; i += 1) {
-        const day = addDays(wk, i);
-        if (day < goal.start_on || day > lastDay) continue;
-        const c = lookup(goal.id, day);
-        if (c?.skipped) skipped += 1;
-        else if (isDone(goal, c)) {
-          done += 1;
-          doneDays.push(day);
-        }
-      }
-      // A goal that starts mid-week only needs what is still possible that week.
-      const open = wk < goal.start_on ? 7 - daysBetween(wk, goal.start_on) : 7;
-      const required = Math.max(0, Math.min(goal.per_week, open) - skipped);
-      weeks.set(wk, { done, required, skipped });
+      const w = weekProgress(goal, lookup, wk, lastDay, weekMark(goal.id, wk));
+      weeks.set(wk, w);
+      const { done, required, doneDays } = w;
 
+      // Nothing needed: sick that week, or every possible day was skipped.
       if (required === 0) {
         status.set(wk, 'skipped');
         continue;
@@ -114,6 +137,10 @@ function weeklyStreak(goal, lookup, today, opts) {
         for (const m of WEEK_MILESTONES) if (current === m && !milestones[m]) milestones[m] = reached;
         if (brokeBig && current === 4 && !comebackOn) comebackOn = reached;
         status.set(wk, 'done');
+      } else if (rest.weeks.has(wk)) {
+        // A banked rest day covered the whole week.
+        firstRest ??= addDays(wk, 6);
+        status.set(wk, 'rest');
       } else if (wk === thisWeek && !goal.archived_on) {
         status.set(wk, 'pending');
       } else if (freezes && bank > 0) {
@@ -142,6 +169,7 @@ function weeklyStreak(goal, lookup, today, opts) {
     milestones,
     comebackOn,
     firstFrozen,
+    firstRest,
     timeline: [],
   };
 }

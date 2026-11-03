@@ -50,12 +50,14 @@ export function Welcome() {
 
   const grew = [];
   const saved = [];
+  const rested = [];
   const lost = [];
   for (const g of current) {
     const s = st.get(g.id);
     if (!s || s.unit !== 'day') continue;
     const status = s.status.get(y);
     if (status === 'done') grew.push(g);
+    else if (status === 'rest') rested.push(g);
     else if (status === 'frozen') saved.push(g);
     else if (status === 'missed') lost.push(g);
   }
@@ -113,6 +115,12 @@ export function Welcome() {
               </span>
             </div>
           )}
+          {rested.length > 0 && (
+            <div class="recap-line">
+              <span>🛌</span>
+              <span>A rest day covered {emojis(rested)}. Your streaks kept going.</span>
+            </div>
+          )}
           {saved.length > 0 && (
             <div class="recap-line">
               <span>❄️</span>
@@ -125,7 +133,7 @@ export function Welcome() {
               <span>{emojis(lost)} reset. Never miss twice: start it again today.</span>
             </div>
           )}
-          {ySum.due > 0 && !ySum.perfect && !grew.length && !saved.length && !lost.length && (
+          {ySum.due > 0 && !ySum.perfect && !grew.length && !saved.length && !rested.length && !lost.length && (
             <div class="recap-line">👋 Today is a great day to start a streak.</div>
           )}
         </section>

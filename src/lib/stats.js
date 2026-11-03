@@ -11,7 +11,10 @@ import {
   weekday,
   weekdayName,
 } from './dates.js';
-import { isActiveOn, isDone, isDueOn, progressOf } from './schedule.js';
+import { addedOn, isActiveOn, isDone, isDueOn, isLogged, progressOf } from './schedule.js';
+
+/** Whether a goal belongs in a day's tally. Before it was added, only days filled in for it count. */
+export const countsOn = (goal, day, c) => isDueOn(goal, day) && (day >= addedOn(goal) || isLogged(c));
 
 /** How a single day went across all day-based goals. `fill` counts partial progress on counted goals. */
 export function daySummary(goals, lookup, day) {
@@ -20,9 +23,10 @@ export function daySummary(goals, lookup, day) {
   let skipped = 0;
   let fill = 0;
   for (const g of goals) {
-    if (!isDueOn(g, day)) continue;
     const c = lookup(g.id, day);
-    if (c?.skipped) {
+    if (!countsOn(g, day, c)) continue;
+    // A sick day (or an older skip) leaves the goal out; a rest day counts as not done.
+    if (c?.skipped && c.skip !== 'rest') {
       skipped += 1;
       continue;
     }

@@ -5,7 +5,7 @@ import { addDays, formatMonth, startOfWeek, weekdayLetters } from '../lib/dates.
 import { tick } from '../lib/haptics.js';
 import { daySummary } from '../lib/stats.js';
 import { allGoals, awardState, goals, lookup, markAwardsSeen, settings, today } from '../lib/store.js';
-import { celebrations, hideToast, setUi, toast, uiState } from '../lib/ui.js';
+import { celebrations, hideToast, setUi, toast, uiState, viewDay } from '../lib/ui.js';
 import { Medal } from './Medal.jsx';
 import { IconCalendar, IconChart, IconCheck, IconFlame, IconMedal } from './icons.jsx';
 
@@ -32,7 +32,11 @@ export function TabBar() {
             class={`tab${tab === key ? ' on' : ''}`}
             aria-current={tab === key ? 'page' : undefined}
             onClick={() => {
-              if (tab === key) return;
+              // Tapping Today again goes back to today from an earlier day.
+              if (tab === key) {
+                if (key === 'today') viewDay.value = null;
+                return;
+              }
               tick();
               setUi({ tab: key });
             }}
@@ -87,7 +91,9 @@ export function defForKey(key) {
     const month = key.split(':')[1];
     return { ...def, label: formatMonth(`${month}-01`, { month: 'short' }).toUpperCase() };
   }
-  return def;
+  // A goal's own medals carry its icon, so every goal's awards look like its own.
+  const goal = def.perGoal ? goals.value[key.split(':')[1]] : null;
+  return goal ? { ...def, glyph: goal.emoji } : def;
 }
 
 /** Full-screen moment for each newly earned award, one at a time. */

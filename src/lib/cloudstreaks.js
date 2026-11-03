@@ -7,13 +7,16 @@ import { ALL_DAYS, isDone } from './schedule.js';
 // Cut by characters, not UTF-16 units, so an emoji is never split in half.
 const clip = (s, n) => Array.from(String(s || '')).slice(0, n).join('');
 
-export function buildStreakRows({ goals, streaks, lookup, today, weekStart = 0 }) {
+export function buildStreakRows({ goals, streaks, lookup, today, weekStart = 0, weekMark = () => null }) {
   return goals
     .filter((g) => !g.deleted_at && (!g.archived_on || g.archived_on > today))
     .map((g) => {
       const s = streaks.get(g.id);
       const c = lookup(g.id, today);
       const weekly = g.schedule === 'weekly';
+      const wk = weekly ? startOfWeek(today, weekStart) : null;
+      // A weekly goal taken off for the week (rest or sick) has nothing left to remind about.
+      const weekOff = weekly && Boolean(weekMark(g.id, wk));
       return {
         goal_id: g.id,
         title: clip(g.title, 60).trim() || 'Goal',
@@ -26,10 +29,10 @@ export function buildStreakRows({ goals, streaks, lookup, today, weekStart = 0 }
         best: s?.best || 0,
         start_on: g.start_on,
         day: today,
-        // "Nothing left to do today": done, or skipped on purpose.
-        done_today: isDone(g, c) || Boolean(c?.skipped),
-        week_of: weekly ? startOfWeek(today, weekStart) : null,
-        week_done: weekly ? Math.min(7, s?.week?.done || 0) : 0,
+        // "Nothing left to do today": done, or taken off on purpose (rest or sick).
+        done_today: isDone(g, c) || Boolean(c?.skipped) || weekOff,
+        week_of: wk,
+        week_done: weekOff ? Math.min(7, g.per_week || 3) : weekly ? Math.min(7, s?.week?.done || 0) : 0,
         reminder_time: g.reminder_time || null,
         health_metric: g.health?.metric || null,
         health_target: g.health?.metric ? fromCount(g.health.metric, g.target) : null,

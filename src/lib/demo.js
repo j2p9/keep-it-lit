@@ -22,7 +22,15 @@ export function makeDemo(today, { fresh = false } = {}) {
     id: 'demo',
     display_name: 'Alex',
     timezone: 'UTC',
-    settings: { onboarded: !fresh, theme: 'auto', weekStart: 0, dayEndHour: 0, freezes: true },
+    settings: {
+      onboarded: !fresh,
+      theme: 'auto',
+      weekStart: 0,
+      dayEndHour: 0,
+      freezes: true,
+      // The sample history has had rest days on for a while, so they show up in the demo.
+      restRules: fresh ? null : [{ from: addDays(today, -45), on: true, every: 7, amount: 1, max: 5 }],
+    },
     stats: {},
     reminder_checkin_enabled: true,
     reminder_checkin_time: '15:00',

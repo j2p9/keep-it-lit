@@ -9,8 +9,11 @@ import { applyTheme } from './lib/theme.js';
 
 applyTheme();
 installBackNavigation();
+// Boot first: a saved login and this phone's data load synchronously, so the very first paint
+// is the app itself rather than a loading screen.
+const booted = boot();
 render(<App />, document.getElementById('app'));
-boot().then(() => {
+booted.then(() => {
   if (location.hash) openFromUrl(location.href);
 });
 window.addEventListener('hashchange', () => openFromUrl(location.href));

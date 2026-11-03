@@ -12,9 +12,70 @@ import { onboardingActive, openOverlay, showToast } from '../lib/ui.js';
 function Dots({ step }) {
   return (
     <div class="steps-dots" aria-hidden="true">
-      {[0, 1].map((i) => (
+      {[0, 1, 2].map((i) => (
         <i key={i} class={i === step ? 'on' : ''} />
       ))}
+    </div>
+  );
+}
+
+/** The one rule before anything else: the app only works if you're honest with it. */
+function HonestyPromise({ onAgree }) {
+  return (
+    <div class="auth">
+      <div class="auth-inner" style="padding-top:calc(var(--safe-top) + 28px)">
+        <Dots step={0} />
+        <div class="flame-big setup-emoji" aria-hidden="true">
+          🤝
+        </div>
+        <h1 class="onb-title" style="text-align:center">
+          One promise before you start
+        </h1>
+        <p class="onb-sub" style="text-align:center">
+          Keep It Lit rewards discipline. Checking off something you didn’t do only fools you: you get a false sense of accomplishment and a
+          cheap hit of dopamine, and the habit never forms.
+        </p>
+        <div class="group" style="margin-bottom:18px">
+          <div class="item">
+            <span style="font-size:22px" aria-hidden="true">
+              ✅
+            </span>
+            <div class="item-main">
+              <div class="item-label">Did it? Check it off.</div>
+            </div>
+          </div>
+          <div class="item">
+            <span style="font-size:22px" aria-hidden="true">
+              🛌
+            </span>
+            <div class="item-main">
+              <div class="item-label">Need a day off? Use a rest day.</div>
+              <div class="item-sub">You earn them with perfect days.</div>
+            </div>
+          </div>
+          <div class="item">
+            <span style="font-size:22px" aria-hidden="true">
+              🤒
+            </span>
+            <div class="item-main">
+              <div class="item-label">Sick? Mark a sick day.</div>
+              <div class="item-sub">It’s free, and your streak pauses.</div>
+            </div>
+          </div>
+          <div class="item">
+            <span style="font-size:22px" aria-hidden="true">
+              🌱
+            </span>
+            <div class="item-main">
+              <div class="item-label">Missed it? Start again tomorrow.</div>
+              <div class="item-sub">A reset streak is honest. A fake one is worth nothing.</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" onClick={onAgree}>
+          I’ll be honest with myself
+        </button>
+      </div>
     </div>
   );
 }
@@ -58,7 +119,7 @@ export function Onboarding() {
         health: tp.health || null,
       });
     }
-    setStep(1);
+    setStep(2);
   };
 
   const finish = () => {
@@ -66,11 +127,13 @@ export function Onboarding() {
     onboardingActive.value = false;
   };
 
-  if (step === 0) {
+  if (step === 0) return <HonestyPromise onAgree={() => setStep(1)} />;
+
+  if (step === 1) {
     return (
       <div class="auth">
         <div class="auth-inner" style="max-width:560px;padding-top:calc(var(--safe-top) + 28px)">
-          <Dots step={0} />
+          <Dots step={1} />
           <h1 class="onb-title">{name ? `Hi ${name}! ` : ''}What do you want to do every day?</h1>
           <p class="onb-sub">Tap a few to start. You can change them anytime.</p>
           {mine.length > 0 && (
@@ -133,7 +196,7 @@ export function Onboarding() {
   return (
     <div class="auth">
       <div class="auth-inner" style="padding-top:calc(var(--safe-top) + 28px)">
-        <Dots step={1} />
+        <Dots step={2} />
         <div class="flame-big" style="display:block;text-align:center;margin-bottom:10px" aria-hidden="true">
           🔥
         </div>

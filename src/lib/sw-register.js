@@ -22,10 +22,12 @@ export function registerServiceWorker() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') checkForUpdate();
   });
+  // The app opens from the cache, so look for a newer build shortly after every launch too.
+  setTimeout(checkForUpdate, 4000);
 }
 
 // iOS keeps Home Screen apps alive for days, so look for a newer build when the app comes back.
-let lastCheck = Date.now();
+let lastCheck = 0;
 async function checkForUpdate() {
   if (Date.now() - lastCheck < 30 * 60 * 1000) return;
   lastCheck = Date.now();

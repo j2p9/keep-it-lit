@@ -9,7 +9,7 @@ import { Auth, Install, SetPassword } from './screens/Auth.jsx';
 import { AwardSheet, Awards } from './screens/Awards.jsx';
 import { BackupSheet } from './screens/Backup.jsx';
 import { Calendar } from './screens/Calendar.jsx';
-import { DaySheet, GoalActions } from './screens/DaySheets.jsx';
+import { DayOffSheet, DaySheet, GoalActions } from './screens/DaySheets.jsx';
 import { GoalEditor, Templates } from './screens/GoalEditor.jsx';
 import { HealthSetup } from './screens/HealthSetup.jsx';
 import { Onboarding } from './screens/Onboarding.jsx';
@@ -23,6 +23,7 @@ const OVERLAYS = {
   awardDetail: AwardSheet,
   backup: BackupSheet,
   changePassword: ChangePassword,
+  dayOff: DayOffSheet,
   daySheet: DaySheet,
   goalActions: GoalActions,
   goalDetail: GoalDetail,

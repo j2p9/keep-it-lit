@@ -24,12 +24,17 @@ Press and hold the app icon for shortcuts to Today, Calendar, Progress and Award
 
 ## What's inside
 
-- **Today:** one tap checks a goal off (or adds +1 to counted goals like 8 glasses of water). Press and hold a goal to skip a day, log an exact amount, edit it or see its stats. Every tap has Undo.
-- **Streaks per goal:** 🔥 day count on every goal. ⏳ appears in the last 4 hours if a streak is about to end, and 💯 from 100 days on. Every 7 days in a row earns a ❄️ streak freeze (up to 2) that saves a missed day automatically. Skipped days never break a streak.
+- **Today:** one tap checks a goal off (or adds +1 to counted goals like 8 glasses of water). Press and hold a goal for a rest or sick day, an exact amount, editing or its stats. Every tap has Undo.
+- **Earlier days:** the week strip on Today (or a swipe) opens any earlier day to check off what you missed. Goals you added later show up there as "Added later", so you can fill them in too. That goal's streak counts from the first day you really did it, and other days stay as they were.
+- **Streaks per goal:** 🔥 day count on every goal. ⏳ appears in the last 4 hours if a streak is about to end, and 💯 from 100 days on.
+- **Rest days and sick days:** perfect days bank 🛌 rest days. You choose how many you earn, how often, and the most you keep. A missed day uses one automatically, covering the whole day; for a weekly goal, a missed week uses one. You can also take a rest day on purpose. 🤒 Sick days and sick weeks are free and pause your streaks. Streak freezes (❄️, earned every 7 days in a row) are the backup when you're out of rest days.
+- **Night owls:** with "My day ends at" set after midnight, Today offers to start the new day early.
 - **Daily welcome:** the first open each day shows yesterday's recap, your streaks, the week at a glance, the next milestone and today's plan.
-- **Calendar:** a month of progress rings. Filter by goal to see its streak chain, and tap any day to fill it in, set a mood or write a note.
+- **Calendar:** a month of progress rings. Filter by goal to see its streak chain, and tap any day to fill it in, set a mood or write a note. Weekly goals get a week-by-week calendar: the days you did it, and each week's result (hit, rest week, sick, freeze or missed).
 - **Progress:** Week / Month / Year completion charts, Highlights, habit strength and a 26-week heatmap per goal.
-- **Awards:** 39 medals across streaks, perfect days, milestones, consistency, monthly challenges, limited editions and a few secrets. They always match your history: undo the check-offs behind an award and it goes away.
+- **Awards:** every goal has its own shelf of medals: streaks from 3 to 365 days (or 4 to 52 weeks), and 10 to 1,000 times done, each with that goal's icon. General awards cover perfect days, milestones, consistency, monthly challenges, limited editions and a few secrets. They always match your history: undo the check-offs behind an award and it goes away.
+- **Honest by design:** new users start with one promise. Keep It Lit rewards discipline, and checking off what you didn't do only gives you a false sense of accomplishment.
+- **Works offline, opens instantly:** the app starts from this phone's saved data and the cached app, with no waiting for the network. A new version shows an "Update" button.
 - **Reminders:** a daily check-in (3 PM), a streak saver (9 PM, only if goals are left) and an optional morning kickoff, plus a reminder per goal. Every time is adjustable.
 - **Apple Health:** goals can follow Steps, Exercise, Active calories, Mindful minutes, Sleep, Water or Workouts. They fill in and check themselves off. Web apps can't read Health directly, so an iOS Shortcut uploads today's totals a few times a day. Settings → Apple Health has the key, the upload address and a step-by-step guide.
 - **Your data stays on your phone:** goals, check-ins, notes, awards and Health numbers are stored only on the phone. Your account keeps just your settings and each goal's streak (so reminders know what's left), plus an **encrypted backup** if you turn it on: it's locked with your own passphrase before it leaves the phone, so nobody else can read it. On a new phone, sign in and enter the passphrase to bring everything back, or start fresh and keep your streaks. Export/Import a file is still there too.

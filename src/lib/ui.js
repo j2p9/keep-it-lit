@@ -74,6 +74,9 @@ export function closeWelcome() {
   }, EXIT_MS);
 }
 
+/** The earlier day the Today screen is showing, or null for today. Not kept across launches. */
+export const viewDay = signal(null);
+
 export const recoveryMode = signal(false);
 /** True while the onboarding flow is on screen, even after its first goals exist. */
 export const onboardingActive = signal(false);

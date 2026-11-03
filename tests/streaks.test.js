@@ -120,7 +120,7 @@ describe('weekly goal streaks', () => {
     expect(s.unit).toBe('week');
     expect(s.current).toBe(2);
     expect(s.status.get('2026-11-01')).toBe('pending');
-    expect(s.week).toEqual({ done: 1, required: 3, skipped: 0 });
+    expect(s.week).toMatchObject({ done: 1, required: 3, skipped: 0 });
   });
 
   it('resets after a short week when no freeze is banked', () => {

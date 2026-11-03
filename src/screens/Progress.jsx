@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'preact/hooks';
-import { AWARD_BY_ID } from '../lib/awards.js';
 import { colorOf } from '../lib/colors.js';
 import { addDays } from '../lib/dates.js';
 import { scheduleLabel, targetLabel } from '../lib/schedule.js';
-import { nextMilestone } from '../lib/streaks.js';
 import { chartSeries, doneByDay, goalRate, habitStrength, highlights, periodStats, rangeBounds } from '../lib/stats.js';
 import {
   allGoals,
@@ -25,6 +23,7 @@ import { Segmented } from '../components/controls.jsx';
 import { Ring } from '../components/Ring.jsx';
 import { Page } from '../components/Sheet.jsx';
 import { IconNext } from '../components/icons.jsx';
+import { GoalShelf } from './Awards.jsx';
 
 const pct = (v) => (v == null ? '–' : `${Math.round(v * 100)}%`);
 const RANGE_TEXT = { week: 'Last 7 days', month: 'Last 30 days', year: 'Last 12 months' };
@@ -204,8 +203,6 @@ export function GoalDetail({ goalId, onClose }) {
   const color = colorOf(goal.color);
   const rate = goalRate(s, addDays(t, -30), addDays(t, -1));
   const doneTotal = checkinList.value.filter((c) => c.goal_id === goal.id && !c.skipped && c.count >= goal.target).length;
-  const next = s ? nextMilestone(s) : null;
-  const nextDef = next ? AWARD_BY_ID[`${s.unit === 'week' ? 'wstreak' : 'streak'}-${next.target}`] : null;
   const archived = goal.archived_on && goal.archived_on <= t;
 
   return (
@@ -272,20 +269,7 @@ export function GoalDetail({ goalId, onClose }) {
         <Heatmap goal={goal} streak={s} lookup={lookup.value} today={t} weekStart={settings.value.weekStart} />
       </section>
 
-      {next && nextDef && !archived && (
-        <section class="card">
-          <div class="card-title">Next award</div>
-          <div style="font-weight:650">
-            {nextDef.title}: {next.target} {s.unit === 'week' ? 'weeks' : 'days'} in a row
-          </div>
-          <div class="muted" style="font-size:14px;margin-top:2px">
-            {next.left} more {s.unit === 'week' ? (next.left === 1 ? 'week' : 'weeks') : next.left === 1 ? 'day' : 'days'} to go
-          </div>
-          <div class="progress-line">
-            <i style={{ width: `${Math.round((s.current / next.target) * 100)}%` }} />
-          </div>
-        </section>
-      )}
+      <GoalShelf goal={goal} heading={false} />
 
       <p class="faint" style="font-size:13px;margin:14px 6px">
         Each goal earns a ❄️ streak freeze for every {s?.unit === 'week' ? '4 weeks' : '7 days'} in a row (up to 2). A freeze is used

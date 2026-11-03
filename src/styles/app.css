@@ -1723,6 +1723,179 @@ button,
   gap: 6px;
   text-align: center;
 }
+/* Today's week strip: pick an earlier day to fill in. */
+.day-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -6px -6px 16px;
+}
+.ds-arrow {
+  width: 28px;
+  height: 48px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  border-radius: 10px;
+}
+.ds-arrow:disabled {
+  opacity: 0.25;
+}
+.ds-days {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  animation: rise-in 0.28s var(--ease) backwards;
+}
+.ds-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0 7px;
+  border-radius: 14px;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s var(--ease);
+}
+.ds-day .wd {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+}
+.ds-day .n {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ds-day.today .wd {
+  color: var(--accent-text);
+}
+.ds-day.on {
+  background: var(--bg-elev);
+  box-shadow: var(--card-shadow), inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.ds-day:disabled {
+  opacity: 0.3;
+}
+.ds-day:active {
+  transform: scale(0.94);
+}
+.today-btn {
+  height: 40px;
+}
+.page-head .title {
+  animation: rise-in 0.25s var(--ease) backwards;
+}
+.stack.later .goal:not(.done) {
+  opacity: 0.8;
+}
+.pill.chip-rest {
+  color: var(--text);
+}
+.hero-chips:empty {
+  display: none;
+}
+.rest-rule .item-main {
+  font-size: 15px;
+  color: var(--text-2);
+  line-height: 2.4;
+}
+.rest-rule .time-input {
+  display: inline-block;
+  max-width: 64px;
+  margin: 0 2px;
+}
+
+/* Weekly goals' calendar: one row per week, with the week's result on the right. */
+.week-cal {
+  --c: #ff7a1a;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.week-cal.from-right {
+  animation: from-right 0.3s var(--ease);
+}
+.week-cal.from-left {
+  animation: from-left 0.3s var(--ease);
+}
+.wc-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr) 50px;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 16px;
+}
+.wc-head {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-align: center;
+  padding-bottom: 0;
+}
+.wc-row.done,
+.wc-row.rest,
+.wc-row.frozen {
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+.wc-day {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.wc-head .wc-day {
+  height: auto;
+}
+.wc-day.done {
+  background: var(--c);
+  color: #fff;
+}
+.wc-day.out {
+  opacity: 0.35;
+}
+.wc-day.future {
+  opacity: 0.3;
+}
+.wc-day.today {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.wc-week {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+}
+.wc-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+.wc-badge.done {
+  background: var(--flame);
+  color: #fff;
+}
+.wc-badge.missed {
+  border: 2px solid var(--ring-track);
+}
+.wc-badge.skipped {
+  color: var(--text-3);
+}
+.wc-n {
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
 .week-strip .wd {
   font-size: 12px;
   font-weight: 700;

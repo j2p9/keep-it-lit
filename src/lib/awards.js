@@ -1,10 +1,22 @@
 import { addDays, addMonths, daysBetween, endOfMonth, localDayOf, minKey, startOfMonth, startOfWeek } from './dates.js';
-import { isDueOn } from './schedule.js';
+import { isActiveOn, isDone } from './schedule.js';
 import { STREAK_MILESTONES, WEEK_MILESTONES } from './streaks.js';
-import { daySummary, doneByDay, firstDay } from './stats.js';
+import { countsOn, daySummary, doneByDay, firstDay } from './stats.js';
 
 export const PERFECT_STEPS = [1, 10, 25, 50, 100, 250];
 export const CHECKIN_STEPS = [1, 50, 100, 250, 500, 1000];
+/** Times one goal has been done, for that goal's own medals. */
+export const DONE_STEPS = [10, 25, 50, 100, 250, 500, 1000];
+
+const DONE_INFO = {
+  10: ['Regular', 'bronze', '10'],
+  25: ['Committed', 'bronze', '25'],
+  50: ['Dedicated', 'silver', '50'],
+  100: ['Centurion', 'gold', '100'],
+  250: ['Veteran', 'platinum', '250'],
+  500: ['Master', 'legendary', '500'],
+  1000: ['Living Legend', 'cosmic', '1K'],
+};
 
 const STREAK_INFO = {
   3: ['Spark', 'bronze'],
@@ -40,6 +52,7 @@ const CHECKIN_INFO = {
 };
 
 // repeat: 'goal' = earned once per goal, 'period' = once per week/month/year, otherwise once ever.
+// perGoal awards belong to one goal (key `id:goalId`) and show on that goal's own shelf.
 export const AWARDS = [
   ...STREAK_MILESTONES.map((n) => ({
     id: `streak-${n}`,
@@ -48,12 +61,13 @@ export const AWARDS = [
     tier: STREAK_INFO[n][1],
     desc:
       n === 66
-        ? 'Keep one goal going 66 days in a row. That is about how long a new habit takes to stick.'
-        : `Keep one goal going ${n} days in a row.`,
+        ? 'Keep this goal going 66 days in a row. That is about how long a new habit takes to stick.'
+        : `Keep this goal going ${n} days in a row.`,
     label: String(n),
     glyph: n >= 100 ? '💯' : '🔥',
     shape: n >= 66 ? 'hex' : 'circle',
     repeat: 'goal',
+    perGoal: true,
     metric: 'dayStreak',
     target: n,
   })),
@@ -62,12 +76,27 @@ export const AWARDS = [
     section: 'streaks',
     title: WEEK_INFO[n][0],
     tier: WEEK_INFO[n][1],
-    desc: `Hit a weekly goal ${n} weeks in a row.`,
+    desc: `Hit this weekly goal ${n} weeks in a row.`,
     label: `${n}w`,
     glyph: '📅',
     shape: 'shield',
     repeat: 'goal',
+    perGoal: true,
     metric: 'weekStreak',
+    target: n,
+  })),
+  ...DONE_STEPS.map((n) => ({
+    id: `done-${n}`,
+    section: 'streaks',
+    title: DONE_INFO[n][0],
+    tier: DONE_INFO[n][1],
+    desc: `Check off this goal ${n.toLocaleString()} times.`,
+    label: DONE_INFO[n][2],
+    glyph: '✅',
+    shape: n >= 250 ? 'star' : 'shield',
+    repeat: 'goal',
+    perGoal: true,
+    metric: 'goalDone',
     target: n,
   })),
   ...PERFECT_STEPS.map((n) => ({
@@ -262,9 +291,8 @@ export const awardIdOf = (key) => key.split(':')[0];
 /** Every due goal finished in the morning (4–9 AM) of that same day. Late-night check-offs don't count. */
 function doneEarly(goals, lookup, day) {
   for (const g of goals) {
-    if (!isDueOn(g, day)) continue;
     const c = lookup(g.id, day);
-    if (c?.skipped) continue;
+    if (!countsOn(g, day, c) || c?.skipped) continue;
     if (!c?.completed_at || localDayOf(c.completed_at) !== day) return false;
     const hour = new Date(c.completed_at).getHours();
     if (hour < 4 || hour >= 9) return false;
@@ -283,11 +311,35 @@ export function evaluateAwards({ goals, checkinsList, lookup, today, streaks, ch
     const prev = earned.get(key);
     if (!prev || day < prev) earned.set(key, day);
   };
-  const stats = { perfectDays: 0, checkins: 0, dayStreak: 0, weekStreak: 0, earlyDays: 0, monthPerfect: 0, joinedDays: 0 };
+  const stats = {
+    perfectDays: 0,
+    checkins: 0,
+    dayStreak: 0,
+    weekStreak: 0,
+    earlyDays: 0,
+    monthPerfect: 0,
+    joinedDays: 0,
+    goalDone: new Map(), // goal id -> times done
+  };
   const live = goals.filter((g) => !g.deleted_at);
   if (joinedOn) stats.joinedDays = Math.max(0, daysBetween(joinedOn, today));
   const first = firstDay(live);
   if (!first) return { earned, stats };
+  const byId = new Map(live.map((g) => [g.id, g]));
+
+  // Each goal's own "times done" medals, earned on the day of the nth check-off.
+  const doneDays = new Map();
+  for (const c of checkinsList) {
+    const g = byId.get(c.goal_id);
+    if (!g || c.day > today || !isActiveOn(g, c.day) || !isDone(g, c)) continue;
+    if (!doneDays.has(g.id)) doneDays.set(g.id, []);
+    doneDays.get(g.id).push(c.day);
+  }
+  for (const [id, days] of doneDays) {
+    days.sort();
+    stats.goalDone.set(id, days.length);
+    for (const n of DONE_STEPS) if (days.length >= n) add(`done-${n}:${id}`, days[n - 1]);
+  }
 
   const created = live.map((g) => (g.created_at ? localDayOf(g.created_at) : g.start_on)).sort()[0];
   add('getting-started', minKey(created, today));
@@ -336,7 +388,6 @@ export function evaluateAwards({ goals, checkinsList, lookup, today, streaks, ch
   }
   stats.checkins = total;
 
-  const byId = new Map(live.map((g) => [g.id, g]));
   for (const c of checkinsList) {
     const g = byId.get(c.goal_id);
     if (g && g.target > 1 && !c.skipped && c.count >= 2 * g.target) add('overachiever', c.day);
@@ -396,6 +447,25 @@ export function evaluateAwards({ goals, checkinsList, lookup, today, streaks, ch
 
   if (joinedOn) add('anniversary', addDays(joinedOn, 365));
   return { earned, stats };
+}
+
+/**
+ * One goal's own awards in order: its streak medals (days, or weeks for weekly goals), then
+ * times done. Each item: { def, key, day (when earned, or null), progress ([have, need] or null) }.
+ */
+export function goalShelf(goal, streak, earned, doneCount = 0) {
+  const weekly = goal.schedule === 'weekly';
+  const ladder = [
+    ...(weekly ? WEEK_MILESTONES.map((n) => `wstreak-${n}`) : STREAK_MILESTONES.map((n) => `streak-${n}`)),
+    ...DONE_STEPS.map((n) => `done-${n}`),
+  ];
+  return ladder.map((id) => {
+    const def = AWARD_BY_ID[id];
+    const key = `${id}:${goal.id}`;
+    const day = earned.get(key) || null;
+    const have = def.metric === 'goalDone' ? doneCount : streak?.current || 0;
+    return { def, key, day, progress: day ? null : [Math.min(have, def.target), def.target] };
+  });
 }
 
 /** Award keys the history has earned that haven't been stored (and celebrated) yet. */

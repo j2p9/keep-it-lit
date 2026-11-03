@@ -3,15 +3,16 @@
 // the profile, a snapshot of each goal's streak (so reminders stay smart) and, if you turn it on,
 // an end-to-end encrypted backup.
 import { batch, computed, effect, signal } from '@preact/signals';
-import { addDays, hoursLeft, localDayOf, startOfWeek, todayKey } from './dates.js';
+import { addDays, dayEndsAt, effectiveToday, localDayOf, startOfWeek, toKey } from './dates.js';
 import { checkinKey, goalStreak, makeLookup } from './streaks.js';
 import { daySummary, firstDay } from './stats.js';
-import { isDone, isDueOn } from './schedule.js';
+import { addedOn, goalsForDay, historyStart, isDone, isDueOn } from './schedule.js';
 import { evaluateAwards, newAwards } from './awards.js';
 import { challengeTarget } from './challenge.js';
 import { buildStreakRows } from './cloudstreaks.js';
 import { healthCount, healthUpdates, toCount, unitFor } from './healthMetrics.js';
 import { localCopyComplete } from './migrate.js';
+import { planRest, REST_DEFAULTS } from './rest.js';
 import * as vault from './backup.js';
 import * as healthApi from './health.js';
 import { readJSON, readString, removeKey, writeJSON, writeString } from './local.js';
@@ -20,7 +21,7 @@ import * as sync from './sync.js';
 import { deviceTimezone, newId, persistStorage, setAppBadge } from './platform.js';
 import { disablePush, refreshPush } from './push.js';
 import { makeDemo } from './demo.js';
-import { celebrate, onboardingActive, recoveryMode, setUi, uiState, welcomeOpen } from './ui.js';
+import { celebrate, onboardingActive, recoveryMode, setUi, uiState, viewDay, welcomeOpen } from './ui.js';
 
 export const DEFAULT_SETTINGS = {
   theme: 'auto',
@@ -30,6 +31,8 @@ export const DEFAULT_SETTINGS = {
   onboarded: false,
   localOnly: false,
   health: false,
+  // Banked rest days, as rules that each apply from their own day on (see rest.js).
+  restRules: null,
 };
 
 export const session = signal({ status: 'loading', user: null, demo: false });
@@ -41,6 +44,8 @@ export const achievements = signal({});
 export const challenges = signal({});
 /** Apple Health numbers by day: { 'YYYY-MM-DD': { steps, exercise, …, at } }. */
 export const health = signal({});
+/** Weekly goals marked for a whole week: { 'goalId|weekStart': 'sick' | 'rest' }. */
+export const weekMarks = signal({});
 export const ready = signal(false);
 /** True once we hold the server's profile (or a local copy), so awards aren't re-earned on a fresh device. */
 export const synced = signal(false);
@@ -69,8 +74,17 @@ export const settings = computed(() => {
   return same ? lastSettings : (lastSettings = next);
 });
 
-export const today = computed(() => todayKey(clock.value, settings.value.dayEndHour));
-export const hoursLeftToday = computed(() => hoursLeft(clock.value, settings.value.dayEndHour));
+export const today = computed(() => effectiveToday(clock.value, settings.value.dayEndHour, uiState.value.earlyDay));
+export const hoursLeftToday = computed(() => (dayEndsAt(today.value, settings.value.dayEndHour) - clock.value) / 3600000);
+/** After midnight but before a late day-end hour: the new calendar date, which can be started early. */
+export const nextDay = computed(() => {
+  const date = toKey(clock.value);
+  return date > today.value ? date : null;
+});
+export function startNextDay() {
+  const day = nextDay.peek();
+  if (day) setUi({ earlyDay: day });
+}
 
 const bySort = (a, b) => a.sort_order - b.sort_order || String(a.created_at || '').localeCompare(String(b.created_at || ''));
 export const allGoals = computed(() =>
@@ -83,11 +97,41 @@ export const archivedGoals = computed(() => allGoals.value.filter((g) => g.archi
 export const lookup = computed(() => makeLookup(checkins.value));
 export const checkinList = computed(() => Object.values(checkins.value));
 
+const weekMarkOf = (marks) => (goalId, wk) => marks[`${goalId}|${wk}`] || null;
+
+/** How rest days work right now: { on, every, amount, max }. */
+export const restRule = computed(() => {
+  const rules = settings.value.restRules;
+  return rules?.length ? rules[rules.length - 1] : REST_DEFAULTS;
+});
+
+/** Rest days earned and spent so far, replayed through the history (see rest.js). */
+export const restPlan = computed(() =>
+  planRest({
+    goals: allGoals.value,
+    lookup: lookup.value,
+    today: today.value,
+    weekStart: settings.value.weekStart,
+    rules: settings.value.restRules || [],
+    weekMark: weekMarkOf(weekMarks.value),
+  }),
+);
+
+/** Changes how rest days work, from today on (earlier days keep the rules they had). */
+export function setRestRule(patch) {
+  const t = today.peek();
+  const rules = settings.peek().restRules || [];
+  const last = rules[rules.length - 1];
+  const next = { ...REST_DEFAULTS, ...last, ...patch, from: t };
+  updateSettings({ restRules: last?.from === t ? [...rules.slice(0, -1), next] : [...rules, next] });
+}
+
 export const streaks = computed(() => {
   const { freezes, weekStart } = settings.value;
   const t = today.value;
   const lk = lookup.value;
-  return new Map(allGoals.value.map((g) => [g.id, goalStreak(g, lk, t, { freezes, weekStart })]));
+  const opts = { freezes, weekStart, rest: restPlan.value, weekMark: weekMarkOf(weekMarks.value) };
+  return new Map(allGoals.value.map((g) => [g.id, goalStreak(g, lk, t, opts)]));
 });
 
 export const todaySummary = computed(() => daySummary(currentGoals.value, lookup.value, today.value));
@@ -130,6 +174,7 @@ const snapshotOf = () => ({
   achievements: achievements.peek(),
   challenges: challenges.peek(),
   health: health.peek(),
+  weekMarks: weekMarks.peek(),
 });
 
 /** Writes everything to this phone. Returns false if storage refused it (full or disabled). */
@@ -141,7 +186,7 @@ function saveNow() {
 let saveTimer = null;
 effect(() => {
   // Touch every piece of user data so any change schedules a save.
-  void [profile.value, goals.value, checkins.value, notes.value, achievements.value, challenges.value, health.value];
+  void [profile.value, goals.value, checkins.value, notes.value, achievements.value, challenges.value, health.value, weekMarks.value];
   if (!ready.value) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 250);
@@ -193,6 +238,7 @@ function loadLocal(id) {
     achievements.value = snap?.achievements || {};
     challenges.value = snap?.challenges || {};
     health.value = snap?.health || {};
+    weekMarks.value = snap?.weekMarks || {};
     // Changes still waiting in the outbox are newer than the snapshot.
     for (const e of queued) mergeRows(e.table, [e.row], { me: id });
     synced.value = Boolean(snap);
@@ -216,6 +262,7 @@ function resetData() {
     achievements.value = {};
     challenges.value = {};
     health.value = {};
+    weekMarks.value = {};
     deviceReady.value = false;
     setupStep.value = null;
     restoreInfo.value = null;
@@ -242,8 +289,6 @@ export async function boot() {
     session.value = { status: 'signedOut', user: null, demo: false };
     return;
   }
-  const { data } = await supabase.auth.getSession();
-  await useSession(data.session);
   supabase.auth.onAuthStateChange((event, s) => {
     if (event === 'PASSWORD_RECOVERY') recoveryMode.value = true;
     // Run outside the auth callback: awaiting Supabase calls inside it can deadlock.
@@ -252,6 +297,36 @@ export async function boot() {
       else if (s?.user && s.user.id !== uid()) useSession(s);
     }, 0);
   });
+  // Open straight from this phone: the saved login says who's signed in, so the app never waits
+  // for the network (refreshing an expired token can take ~30 s, and fails offline).
+  const saved = savedUser();
+  if (saved) useSession({ user: saved });
+  checkLogin();
+}
+
+/** The signed-in user from Supabase's saved login on this phone, without any network call. */
+function savedUser() {
+  try {
+    return JSON.parse(localStorage.getItem('kil-auth'))?.user || null;
+  } catch {
+    return null;
+  }
+}
+
+async function checkLogin() {
+  let data;
+  try {
+    ({ data } = await supabase.auth.getSession());
+  } catch {
+    return;
+  }
+  if (data.session) {
+    if (data.session.user.id !== uid()) await useSession(data.session);
+    return;
+  }
+  // Offline, Supabase keeps the saved login and we keep going. It only drops it when the
+  // login is really over (signed out elsewhere, or the token was revoked).
+  if (!savedUser()) await useSession(null);
 }
 
 async function useSession(s) {
@@ -307,6 +382,7 @@ function startDemo(mode) {
     achievements.value = snap.achievements || {};
     challenges.value = snap.challenges || {};
     health.value = snap.health || {};
+    weekMarks.value = snap.weekMarks || {};
     synced.value = true;
     deviceReady.value = true;
     ready.value = true;
@@ -533,17 +609,36 @@ function buildCheckin(goal, day, patch, at) {
   return { prev, row };
 }
 
+/**
+ * Filling in (or clearing) a day before a goal was added moves where its history starts, so
+ * the goal's streak counts from the first day it was really done.
+ */
+function followHistoryStart(goalId, day) {
+  const g = goals.peek()[goalId];
+  if (!g || day >= addedOn(g)) return;
+  const added = addedOn(g);
+  const doneDays = [];
+  for (const c of Object.values(checkins.peek())) {
+    if (c.goal_id === goalId && c.day < added && !c.skipped && c.count > 0) doneDays.push(c.day);
+  }
+  const start = historyStart(g, doneDays);
+  if (start !== g.start_on || !g.added_on) saveGoal({ id: goalId, added_on: added, start_on: start });
+}
+
 /** Changes one goal's check-in for a day. `at` is when it was really done (Health uploads). */
 export function setCheckin(goal, day, patch, { at } = {}) {
   const { prev, row } = buildCheckin(goal, day, patch, at);
-  checkins.value = { ...checkins.peek(), [checkinKey(goal.id, day)]: row };
+  batch(() => {
+    checkins.value = { ...checkins.peek(), [checkinKey(goal.id, day)]: row };
+    followHistoryStart(goal.id, day);
+  });
   return prev;
 }
 
 /** One tap: tick a checkbox goal on/off, or add one to a counted goal. Returns the previous row for undo. */
 export function tapGoal(goal, day) {
   const c = checkins.peek()[checkinKey(goal.id, day)];
-  if (c?.skipped) return setCheckin(goal, day, { skipped: false });
+  if (c?.skipped) return setCheckin(goal, day, { skipped: false, skip: null });
   if (goal.health?.metric) {
     // Apple Health fills these in. A tap marks it done by hand, or goes back to what Health counted.
     const counted = healthCount(goal, health.peek()[day]) ?? 0;
@@ -555,7 +650,10 @@ export function tapGoal(goal, day) {
 
 export function restoreCheckin(goal, day, prev) {
   const row = prev ? { ...prev } : { goal_id: goal.id, day, user_id: uid(), count: 0, skipped: false, completed_at: null };
-  checkins.value = { ...checkins.peek(), [checkinKey(goal.id, day)]: row };
+  batch(() => {
+    checkins.value = { ...checkins.peek(), [checkinKey(goal.id, day)]: row };
+    followHistoryStart(goal.id, day);
+  });
 }
 
 const nextSort = () => allGoals.peek().reduce((m, g) => Math.max(m, g.sort_order), -1) + 1;
@@ -579,6 +677,7 @@ export function saveGoal(data) {
         health: null,
         sort_order: nextSort(),
         start_on: today.peek(),
+        added_on: today.peek(),
         archived_on: null,
         deleted_at: null,
         created_at: nowIso(),
@@ -625,6 +724,31 @@ export function createGoal(data, priorStreak = 0) {
     }
     return g;
   });
+}
+
+/**
+ * A day off for one goal: 'rest' spends a banked rest day (one covers the whole day), 'sick'
+ * is free and pauses the streak. null undoes it.
+ */
+export function setDayOff(goal, day, kind) {
+  return kind ? setCheckin(goal, day, { skipped: true, skip: kind }) : setCheckin(goal, day, { skipped: false, skip: null });
+}
+
+/** Takes the whole day off: every goal not done yet that day gets a rest (or sick) day. */
+export function takeDayOff(day, kind) {
+  const lk = lookup.peek();
+  const { due } = goalsForDay(allGoals.peek(), day, lk);
+  batch(() => {
+    for (const g of due) if (!isDone(g, lk(g.id, day)) && !lk(g.id, day)?.skipped) setDayOff(g, day, kind);
+  });
+}
+
+/** Marks a weekly goal's week: 'rest' (spends one rest day for the whole week), 'sick' (free) or null. */
+export function setWeekMark(goal, wk, mark) {
+  const next = { ...weekMarks.peek() };
+  if (mark) next[`${goal.id}|${wk}`] = mark;
+  else delete next[`${goal.id}|${wk}`];
+  weekMarks.value = next;
 }
 
 export const archiveGoal = (g) => saveGoal({ id: g.id, archived_on: today.peek() });
@@ -678,6 +802,7 @@ export function exportData() {
     achievements: Object.values(achievements.peek()),
     challenges: Object.values(challenges.peek()),
     health: health.peek(),
+    week_marks: weekMarks.peek(),
   };
 }
 
@@ -721,6 +846,12 @@ export function importData(data) {
     const h = { ...health.peek() };
     for (const [day, m] of Object.entries(data.health || {})) h[day] = { ...m, ...(h[day] || {}) };
     health.value = h;
+    const wm = { ...weekMarks.peek() };
+    for (const [key, mark] of Object.entries(data.week_marks || {})) {
+      const [goalId, wk] = key.split('|');
+      wm[`${mapId(goalId)}|${wk}`] = mark;
+    }
+    weekMarks.value = wm;
   });
   return { goals: data.goals.length, checkins: (data.checkins || []).length };
 }
@@ -833,7 +964,7 @@ export async function disableBackup() {
 // Any change to the data marks the backup out of date; it uploads 2 minutes later, or when the
 // app goes to the background.
 effect(() => {
-  void [goals.value, checkins.value, notes.value, achievements.value, challenges.value, health.value];
+  void [goals.value, checkins.value, notes.value, achievements.value, challenges.value, health.value, weekMarks.value];
   if (!ready.peek() || !deviceReady.peek() || setupStep.peek()) return;
   const id = uid();
   if (backupWatchFor !== id) {
@@ -980,8 +1111,15 @@ effect(() => {
       lookup: lookup.value,
       today: today.value,
       weekStart: settings.value.weekStart,
+      weekMark: weekMarkOf(weekMarks.value),
     }),
   );
+});
+
+// A new day: Today goes back to showing today.
+effect(() => {
+  void today.value;
+  viewDay.value = null;
 });
 
 // Home Screen icon badge: goals left today.
@@ -989,6 +1127,12 @@ effect(() => {
   if (!ready.value) return;
   const s = todaySummary.value;
   setAppBadge(Math.max(0, s.due - s.done));
+});
+
+// Rest days start the day this version first runs (or the day you sign up), never in the past.
+effect(() => {
+  if (!ready.value || !synced.value || !profile.value || settings.value.restRules) return;
+  updateSettings({ restRules: [{ ...REST_DEFAULTS, from: today.peek() }] });
 });
 
 // Accounts that already have goals (made before onboarding existed, or imported) skip onboarding.
@@ -1018,7 +1162,7 @@ if (demoRequested) {
         restoreInfo.value = { backup: await demoCloud.info(), streaks: rows };
       }
       if (newPhone) {
-        batch(() => [goals, checkins, notes, achievements, challenges, health].forEach((s) => (s.value = {})));
+        batch(() => [goals, checkins, notes, achievements, challenges, health, weekMarks].forEach((s) => (s.value = {})));
       }
       setupStep.value = step;
     },

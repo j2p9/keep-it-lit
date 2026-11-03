@@ -17,7 +17,10 @@ import {
   importData,
   moveGoal,
   profile,
+  restPlan,
+  restRule,
   session,
+  setRestRule,
   settings,
   signOut,
   syncNow,
@@ -66,6 +69,7 @@ function ReminderRow({ icon, title, sub, enabled, time, onEnabled, onTime }) {
 export function Settings({ onClose }) {
   const p = profile.value || {};
   const s = settings.value;
+  const rule = restRule.value;
   const demo = session.value.demo;
   const email = session.value.user?.email;
   const [push, setPush] = useState('checking');
@@ -268,11 +272,54 @@ export function Settings({ onClose }) {
       <div class="group">
         <div class="item">
           <span style="font-size:22px" aria-hidden="true">
+            🛌
+          </span>
+          <div class="item-main">
+            <div class="item-label">Rest days · {restPlan.value.bank} banked</div>
+            <div class="item-sub">
+              Bank days off with perfect days. A missed day (or a weekly goal’s missed week) uses one automatically. Changes apply from
+              today on.
+            </div>
+          </div>
+          <Switch label="Rest days" on={rule.on} onChange={(v) => setRestRule({ on: v })} />
+        </div>
+        {rule.on && (
+          <div class="item rest-rule">
+            <div class="item-main">
+              Earn{' '}
+              <select class="time-input" aria-label="Rest days earned each time" value={rule.amount} onChange={(e) => setRestRule({ amount: Number(e.currentTarget.value) })}>
+                {[1, 2, 3].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>{' '}
+              every{' '}
+              <select class="time-input" aria-label="Perfect days to earn a rest day" value={rule.every} onChange={(e) => setRestRule({ every: Number(e.currentTarget.value) })}>
+                {[3, 4, 5, 6, 7, 10, 14, 21, 30].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>{' '}
+              perfect days, keep up to{' '}
+              <select class="time-input" aria-label="Most rest days banked" value={rule.max} onChange={(e) => setRestRule({ max: Number(e.currentTarget.value) })}>
+                {[1, 2, 3, 5, 7, 10, 14, 20, 30].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+        <div class="item">
+          <span style="font-size:22px" aria-hidden="true">
             ❄️
           </span>
           <div class="item-main">
             <div class="item-label">Streak freezes</div>
-            <div class="item-sub">Earn one every 7 days in a row; it saves a missed day</div>
+            <div class="item-sub">A backup for when you’re out of rest days: earn one every 7 days in a row on a goal</div>
           </div>
           <Switch label="Streak freezes" on={s.freezes} onChange={(v) => updateSettings({ freezes: v })} />
         </div>
@@ -282,7 +329,7 @@ export function Settings({ onClose }) {
           </span>
           <div class="item-main">
             <div class="item-label">My day ends at</div>
-            <div class="item-sub">For night owls: late check-offs count for the day before</div>
+            <div class="item-sub">For night owls: late check-offs count for the day before. After midnight, Today lets you start the new day early.</div>
           </div>
           <select
             class="time-input"
@@ -316,7 +363,10 @@ export function Settings({ onClose }) {
           </select>
         </div>
       </div>
-      <div style="height:16px" />
+      <p class="group-note">
+        🤒 Sick? Tap 🛌 on Today, or press and hold a goal. Sick days (and sick weeks for weekly goals) are free and pause your streaks.
+        Only use them when you really are.
+      </p>
 
       <h2 class="group-title">Appearance</h2>
       <div class="group" style="padding:12px">

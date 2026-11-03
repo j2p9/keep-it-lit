@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { colorOf } from '../lib/colors.js';
-import { formatTime } from '../lib/dates.js';
+import { formatDay, formatTime, startOfWeek } from '../lib/dates.js';
 import { tick } from '../lib/haptics.js';
 import { confetti } from '../lib/confetti.js';
 import { healthProgressLabel } from '../lib/healthMetrics.js';
 import { isDone, scheduleLabel, targetLabel } from '../lib/schedule.js';
+import { daySummary } from '../lib/stats.js';
 import { isAtRisk, streakGlyph } from '../lib/streaks.js';
-import { hoursLeftToday, lookup, restoreCheckin, streaks, tapGoal, today, todaySummary } from '../lib/store.js';
+import { allGoals, hoursLeftToday, lookup, restoreCheckin, settings, streaks, tapGoal, today } from '../lib/store.js';
 import { openOverlay, showToast } from '../lib/ui.js';
 import { Ring } from './Ring.jsx';
 import { IconCheck } from './icons.jsx';
@@ -93,7 +94,7 @@ export function StreakBadge({ goal, s, done }) {
   );
 }
 
-export function GoalRow({ goal, day }) {
+export function GoalRow({ goal, day, sub: subText }) {
   const c = lookup.value(goal.id, day);
   const s = streaks.value.get(goal.id);
   const done = isDone(goal, c);
@@ -115,9 +116,10 @@ export function GoalRow({ goal, day }) {
 
   const onTap = () => {
     tick();
-    const before = todaySummary.peek();
+    const summary = () => daySummary(allGoals.peek(), lookup.peek(), day);
+    const before = summary();
     const prev = tapGoal(goal, day);
-    const after = todaySummary.peek();
+    const after = summary();
     const row = lookup.peek()(goal.id, day);
     if (tapsCount && !skipped) setFx({ kind: 'plus', id: Date.now() });
     else if (isDone(goal, row) && !done) setFx({ kind: 'burst', id: Date.now() });
@@ -125,6 +127,8 @@ export function GoalRow({ goal, day }) {
     if (isToday && after.perfect && !before.perfect) {
       confetti();
       showToast('You kept it lit today! 🔥', { action: undo, duration: 4500 });
+    } else if (after.perfect && !before.perfect) {
+      showToast(`✨ ${formatDay(day, { weekday: 'long' })} is complete`, { action: undo, duration: 3200 });
     } else if (tapsCount && !skipped) {
       const unit = goal.unit ? ` ${goal.unit}` : '';
       showToast(`${goal.emoji} ${row.count} of ${goal.target}${unit}${isDone(goal, row) && !done ? ' · done!' : ''}`, { action: undo, duration: 2600 });
@@ -134,9 +138,20 @@ export function GoalRow({ goal, day }) {
   };
   const press = useLongPress(() => openOverlay('goalActions', { goalId: goal.id, day }), onTap);
 
+  // A weekly goal shows the week of the day on screen, not always this week.
+  const wk = goal.schedule === 'weekly' && s ? startOfWeek(day, settings.value.weekStart) : null;
+  const week = wk ? (wk === s.thisWeek ? s.week : s.weeks?.get(wk)) : null;
+  const status = s?.status.get(wk || day);
+
   let sub;
-  if (skipped) sub = 'Skipped · streak is safe';
-  else if (goal.schedule === 'weekly' && s) sub = `${s.week.done} of ${s.week.required} this week`;
+  if (subText) sub = subText;
+  else if (week?.mark === 'sick') sub = '🤒 Sick week · streak paused';
+  else if (wk && (status === 'rest' || (week?.mark === 'rest' && status !== 'done'))) sub = '🛌 Rest week · streak keeps going';
+  else if (c?.skip === 'rest') sub = status === 'rest' ? '🛌 Rest day · streak keeps going' : '🛌 Rest day';
+  else if (c?.skip === 'sick') sub = '🤒 Sick day · streak paused';
+  else if (skipped) sub = 'Skipped · streak is safe';
+  else if (!done && !wk && status === 'rest') sub = '🛌 Covered by a rest day';
+  else if (week) sub = `${week.done} of ${week.required} ${wk === s.thisWeek ? 'this week' : 'that week'}`;
   else if (linked) sub = counted ? `❤️ ${healthProgressLabel(goal, count)}` : '❤️ Apple Health';
   else if (counted) sub = `${count} / ${targetLabel(goal)}`;
   else if (goal.schedule !== 'daily') sub = scheduleLabel(goal);
