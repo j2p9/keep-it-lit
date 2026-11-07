@@ -99,6 +99,9 @@ export const checkinList = computed(() => Object.values(checkins.value));
 
 const weekMarkOf = (marks) => (goalId, wk) => marks[`${goalId}|${wk}`] || null;
 
+/** A rest day that was just earned, waiting for its moment on screen: { day, amount }. */
+export const restEarned = signal(null);
+
 /** How rest days work right now: { on, every, amount, max }. */
 export const restRule = computed(() => {
   const rules = settings.value.restRules;
@@ -1127,6 +1130,22 @@ effect(() => {
   if (!ready.value) return;
   const s = todaySummary.value;
   setAppBadge(Math.max(0, s.due - s.done));
+});
+
+// A rest day just earned gets its own moment (once: undoing and redoing the day doesn't repeat it).
+effect(() => {
+  if (!ready.value || !synced.value) return;
+  const last = restPlan.value.lastEarned;
+  const seen = uiState.peek().restSeen;
+  if (seen === undefined) {
+    // First run on this phone: earlier ones were before you could be told.
+    setUi({ restSeen: last?.day || null });
+    return;
+  }
+  if (last && (!seen || last.day > seen)) {
+    setUi({ restSeen: last.day });
+    restEarned.value = last;
+  }
 });
 
 // Rest days start the day this version first runs (or the day you sign up), never in the past.

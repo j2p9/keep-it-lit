@@ -186,12 +186,8 @@ export function Today() {
               <div class="hero-text">
                 <div class="hero-big">{big}</div>
                 <div class="hero-sub">{small}</div>
+                <RestMeter day={day} />
                 <div class="hero-chips">
-                  {restRule.value.on && (
-                    <button class="pill chip-rest" onClick={() => openOverlay('dayOff', { day })}>
-                      🛌 {plural(restPlan.value.bank, 'rest day')}
-                    </button>
-                  )}
                   {!restRule.value.on && sum.due - sum.done > 0 && (
                     <button class="pill" onClick={() => openOverlay('dayOff', { day })}>
                       🤒 Sick day?
@@ -272,6 +268,38 @@ export function Today() {
         )}
       </div>
     </main>
+  );
+}
+
+/** Rest days banked, and how many more perfect days earn the next one. Tap for a day off. */
+function RestMeter({ day }) {
+  const rule = restRule.value;
+  if (!rule.on) return null;
+  const plan = restPlan.value;
+  const full = plan.bank >= rule.max;
+  const next = plan.nextIn ?? rule.every;
+  const progress = Math.max(0, Math.min(1, (rule.every - next) / rule.every));
+  return (
+    <button
+      class="rest-meter"
+      onClick={() => openOverlay('dayOff', { day })}
+      aria-label={`${plural(plan.bank, 'rest day')} banked. ${full ? 'Bank full.' : `${plural(next, 'more perfect day')} to the next one.`}`}
+    >
+      <span class="rm-top">
+        🛌 {plural(plan.bank, 'rest day')}
+        {full && <span class="rm-full">full</span>}
+      </span>
+      {!full && (
+        <>
+          <span class="rm-bar" aria-hidden="true">
+            <i style={{ width: `${Math.round(progress * 100)}%` }} />
+          </span>
+          <span class="rm-sub">
+            Next in {plural(next, 'perfect day')}
+          </span>
+        </>
+      )}
+    </button>
   );
 }
 

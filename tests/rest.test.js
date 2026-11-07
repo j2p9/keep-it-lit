@@ -17,7 +17,9 @@ describe('Banked rest days', () => {
     const p = plan([a], lookup);
     expect(p.days.has(d(-13))).toBe(true);
     expect(p.earnedOn).toEqual([d(-14), d(-6)]);
+    expect(p.lastEarned).toEqual({ day: d(-6), amount: 1 });
     expect(p.bank).toBe(1);
+    expect(p.nextIn).toBe(2); // 5 perfect days since the last one, 7 needed
     const s = streak(a, lookup, p);
     expect(s.status.get(d(-13))).toBe('rest');
     expect(s.current).toBe(19);

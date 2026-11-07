@@ -4,7 +4,7 @@ import { addDays, formatDay } from '../lib/dates.js';
 import { isDueOn } from '../lib/schedule.js';
 import { daySummary } from '../lib/stats.js';
 import { nextMilestone } from '../lib/streaks.js';
-import { allGoals, awardState, clock, currentChallenge, currentGoals, lookup, profile, streaks, today } from '../lib/store.js';
+import { allGoals, awardState, clock, currentChallenge, currentGoals, lookup, profile, restPlan, restRule, streaks, today } from '../lib/store.js';
 import { closeWelcome, welcomeLeaving } from '../lib/ui.js';
 import { WeekStrip } from '../components/chrome.jsx';
 import { HealthCard } from '../components/HealthCard.jsx';
@@ -73,6 +73,9 @@ export function Welcome() {
   const nextDef = next && AWARD_BY_ID[`${next.s.unit === 'week' ? 'wstreak' : 'streak'}-${next.m.target}`];
   const ch = currentChallenge.value;
   const monthPerfect = awardState.value.stats.monthPerfect;
+  const rule = restRule.value;
+  const rest = restPlan.value;
+  const restNext = rule.on && rest.bank < rule.max ? rest.nextIn : null;
   const dueToday = current.filter((g) => isDueOn(g, t) || g.schedule === 'weekly');
   const line = LINES[Number(t.replace(/-/g, '')) % LINES.length];
   const emojis = (list) => list.map((g) => g.emoji).join(' ');
@@ -166,7 +169,7 @@ export function Welcome() {
           <WeekStrip />
         </section>
 
-        {(nextDef || ch) && (
+        {(nextDef || ch || restNext) && (
           <section class="card">
             <div class="card-title">Up next</div>
             {nextDef && (
@@ -187,6 +190,16 @@ export function Welcome() {
                 </div>
                 <div class="progress-line">
                   <i style={{ width: `${Math.min(100, Math.round((monthPerfect / ch.target) * 100))}%` }} />
+                </div>
+              </div>
+            )}
+            {restNext && (
+              <div style={ch || nextDef ? 'margin-top:12px' : undefined}>
+                <div style="font-weight:650">
+                  🛌 {restNext} more perfect {restNext === 1 ? 'day' : 'days'} to your next rest day ({rest.bank} banked)
+                </div>
+                <div class="progress-line">
+                  <i style={{ width: `${Math.round(((rule.every - restNext) / rule.every) * 100)}%` }} />
                 </div>
               </div>
             )}

@@ -21,20 +21,22 @@ export function ruleOn(rules, day) {
 
 /**
  * Replays the history and returns { days, weeks (rested week starts), bank (rest days left),
- * earnedOn, usedOn, nextIn (perfect days until the next one, or null when off) }.
+ * earnedOn, lastEarned ({ day, amount } or null), usedOn, nextIn (perfect days until the next
+ * one, or null when off) }.
  */
 export function planRest({ goals, lookup, today, weekStart = 0, rules = [], weekMark = () => null }) {
   const days = new Set();
   const weeks = new Set();
   const earnedOn = [];
   const usedOn = [];
+  let lastEarned = null;
   let bank = 0;
   let progress = 0; // perfect days toward the next rest day
   const live = goals.filter((g) => !g.deleted_at);
   const first = firstDay(live);
   const current = ruleOn(rules, today);
   const nextIn = () => (current?.on ? Math.max(1, current.every - progress) : null);
-  if (!first || !rules?.length) return { days, weeks, bank, earnedOn, usedOn, nextIn: nextIn() };
+  if (!first || !rules?.length) return { days, weeks, bank, earnedOn, lastEarned, usedOn, nextIn: nextIn() };
 
   const use = (set, key, day) => {
     if (bank < 1) return;
@@ -82,9 +84,12 @@ export function planRest({ goals, lookup, today, weekStart = 0, rules = [], week
         progress = 0;
         const before = bank;
         bank = Math.max(bank, Math.min(rule.max, bank + rule.amount));
-        if (bank > before) earnedOn.push(d);
+        if (bank > before) {
+          earnedOn.push(d);
+          lastEarned = { day: d, amount: bank - before };
+        }
       }
     }
   }
-  return { days, weeks, bank, earnedOn, usedOn, nextIn: nextIn() };
+  return { days, weeks, bank, earnedOn, lastEarned, usedOn, nextIn: nextIn() };
 }

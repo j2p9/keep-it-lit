@@ -4,7 +4,7 @@ import { confetti } from '../lib/confetti.js';
 import { addDays, formatMonth, startOfWeek, weekdayLetters } from '../lib/dates.js';
 import { tick } from '../lib/haptics.js';
 import { daySummary } from '../lib/stats.js';
-import { allGoals, awardState, goals, lookup, markAwardsSeen, settings, today } from '../lib/store.js';
+import { allGoals, awardState, goals, lookup, markAwardsSeen, restEarned, restPlan, restRule, settings, today } from '../lib/store.js';
 import { celebrations, hideToast, setUi, toast, uiState, viewDay } from '../lib/ui.js';
 import { Medal } from './Medal.jsx';
 import { IconCalendar, IconChart, IconCheck, IconFlame, IconMedal } from './icons.jsx';
@@ -96,11 +96,46 @@ export function defForKey(key) {
   return goal ? { ...def, glyph: goal.emoji } : def;
 }
 
+// Awards waiting for their moment, skipping anything undone before it came (checked off, then unchecked).
+const pendingAwards = () => {
+  const earned = awardState.value.earned;
+  return celebrations.value.filter((c) => defForKey(c.award_key) && earned.has(c.award_key));
+};
+
+/** Full-screen moment when perfect days bank a rest day. Waits until award moments are done. */
+export function RestEarned() {
+  const r = restEarned.value;
+  const plan = restPlan.value;
+  // Undone since (the perfect day was unchecked): nothing to tell.
+  const show = Boolean(r) && plan.lastEarned?.day === r.day && !pendingAwards().length;
+  useEffect(() => {
+    if (!show) return;
+    tick();
+    confetti({ y: 0.38 });
+  }, [show, r?.day]);
+  if (!show) return null;
+  const rule = restRule.value;
+  const full = plan.bank >= rule.max;
+  return (
+    <div class="celebrate" role="dialog" aria-modal="true" aria-label="Rest day earned">
+      <Medal def={{ tier: 'ice', shape: 'circle', glyph: '🛌', label: `+${r.amount}` }} size={176} />
+      <div class="kicker">Rest day earned</div>
+      <h2>{r.amount === 1 ? 'You earned a rest day' : `You earned ${r.amount} rest days`}</h2>
+      <p>
+        {rule.every} perfect days banked {r.amount === 1 ? 'it' : 'them'}. You have {plan.bank} now: miss a day and one covers it, so your
+        streaks keep going.{' '}
+        {full ? 'Your bank is full, so use one before earning more.' : `Next one in ${plan.nextIn} more perfect ${plan.nextIn === 1 ? 'day' : 'days'}.`}
+      </p>
+      <button class="btn btn-primary" onClick={() => (restEarned.value = null)} autoFocus>
+        Nice!
+      </button>
+    </div>
+  );
+}
+
 /** Full-screen moment for each newly earned award, one at a time. */
 export function Celebration() {
-  // Skip anything undone before its moment came (e.g. checked off, then unchecked).
-  const earned = awardState.value.earned;
-  const queue = celebrations.value.filter((c) => defForKey(c.award_key) && earned.has(c.award_key));
+  const queue = pendingAwards();
   const item = queue[0];
   useEffect(() => {
     if (!item) return;

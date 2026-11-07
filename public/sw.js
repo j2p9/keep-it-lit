@@ -27,11 +27,14 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE);
+      // The open app may still be loading the files of the version it was opened with.
+      const old = await cache.match('./index.html', { ignoreVary: true });
+      const previousHtml = old ? await old.text() : '';
       await cache.addAll(SHELL).catch(() => {});
       const res = await fetch('./index.html', { cache: 'no-store' });
       if (res.ok) {
         await cache.put('./index.html', res.clone());
-        await cacheApp(await res.text());
+        await cacheApp(await res.text(), previousHtml);
       }
       await self.skipWaiting();
     })(),
@@ -111,6 +114,25 @@ self.addEventListener('fetch', (event) => {
         .catch(() => hit);
       return url.pathname.endsWith('version.json') ? network : hit || network;
     }),
+  );
+});
+
+// The app saw a newer version online: download and keep it now, so the next open is the new one.
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'refresh') return;
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE);
+      const cached = await cache.match('./index.html', { ignoreVary: true });
+      const previousHtml = cached ? await cached.clone().text() : '';
+      const res = await fetch('./index.html', { cache: 'no-store' });
+      if (res.ok) {
+        await cache.put('./index.html', res.clone());
+        await cacheApp(await res.text(), previousHtml);
+      }
+    })()
+      .catch(() => {})
+      .finally(() => event.ports[0]?.postMessage({ type: 'refreshed' })),
   );
 });
 

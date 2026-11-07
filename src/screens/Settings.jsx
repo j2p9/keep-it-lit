@@ -32,6 +32,7 @@ import {
   updateSettings,
 } from '../lib/store.js';
 import { cloudConfigured, supabase } from '../lib/supabase.js';
+import { buildLabel } from '../lib/sw-register.js';
 import { closeAllOverlays, openOverlay, showToast } from '../lib/ui.js';
 import { Page, Sheet } from '../components/Sheet.jsx';
 import { Segmented, Switch } from '../components/controls.jsx';
@@ -275,7 +276,10 @@ export function Settings({ onClose }) {
             🛌
           </span>
           <div class="item-main">
-            <div class="item-label">Rest days · {restPlan.value.bank} banked</div>
+            <div class="item-label">
+              Rest days · {restPlan.value.bank} banked
+              {rule.on && restPlan.value.bank < rule.max ? ` · next in ${restPlan.value.nextIn}` : ''}
+            </div>
             <div class="item-sub">
               Bank days off with perfect days. A missed day (or a weekly goal’s missed week) uses one automatically. Changes apply from
               today on.
@@ -514,7 +518,7 @@ export function Settings({ onClose }) {
         )}
       </div>
       <p class="group-note" style="text-align:center;margin-top:18px">
-        Keep It Lit {__APP_VERSION__} · Made with 🔥
+        Keep It Lit {__APP_VERSION__} · updated {buildLabel()} · Made with 🔥
       </p>
     </Page>
   );

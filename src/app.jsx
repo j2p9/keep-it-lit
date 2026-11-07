@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { isIOS, isStandalone } from './lib/platform.js';
 import { firstLoad, needsOnboarding, ready, session, setupStep } from './lib/store.js';
 import { closeOverlay, onboardingActive, openOverlay, overlays, recoveryMode, uiState, welcomeOpen } from './lib/ui.js';
-import { Celebration, Splash, TabBar, Toast } from './components/chrome.jsx';
+import { Celebration, RestEarned, Splash, TabBar, Toast } from './components/chrome.jsx';
 import { GradientDefs } from './components/Ring.jsx';
 import { Auth, Install, SetPassword } from './screens/Auth.jsx';
 import { AwardSheet, Awards } from './screens/Awards.jsx';
@@ -132,6 +132,7 @@ export function App() {
       {!setupStep.value && <Overlays />}
       {shell && welcomeOpen.value && <Welcome />}
       {shell && !welcomeOpen.value && <Celebration />}
+      {shell && !welcomeOpen.value && <RestEarned />}
       <Toast />
     </ErrorBoundary>
   );
