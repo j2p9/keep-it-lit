@@ -264,29 +264,24 @@ export function BudgetSetup({ fresh = false, onClose }) {
     <Sheet onClose={onClose} title={editing ? 'Edit budget' : 'Daily budget'} sub={editing ? null : 'Split your money into an amount per day. What you don’t spend carries over.'}>
       <form onSubmit={save}>
         <span class="label">{editing ? 'Money for this budget' : 'How much money do you have?'}</span>
-        <div class="money-row">
-          <label class="money-input">
-            <span class="cur" aria-hidden="true">
-              {currencySymbol(currency)}
-            </span>
-            <input
-              inputMode="decimal"
-              aria-label="Money"
-              placeholder="0"
-              value={amount}
-              onInput={(e) => {
-                setAmount(e.currentTarget.value);
-                setError('');
-              }}
-            />
-          </label>
-          <select class="time-input" aria-label="Currency" value={currency} onChange={(e) => setCurrency(e.currentTarget.value)}>
+        <div class="money-input">
+          <select class="cur-select" aria-label="Currency" value={currency} onChange={(e) => setCurrency(e.currentTarget.value)}>
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
           </select>
+          <input
+            inputMode="decimal"
+            aria-label="Money"
+            placeholder="0"
+            value={amount}
+            onInput={(e) => {
+              setAmount(e.currentTarget.value);
+              setError('');
+            }}
+          />
         </div>
 
         {!editing && carrySource && leftover !== 0 && (
