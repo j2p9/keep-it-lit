@@ -1,4 +1,5 @@
 // Seeded sample data for previewing the app on localhost (?demo). Never used in production.
+import { guessCurrency } from './budget.js';
 import { addDays, fromKey } from './dates.js';
 import { checkinKey } from './streaks.js';
 
@@ -91,5 +92,20 @@ export function makeDemo(today, { fresh = false } = {}) {
   const notes = {
     [addDays(today, -1)]: { user_id: 'demo', day: addDays(today, -1), note: 'Great run by the river.', mood: 5 },
   };
-  return { profile, goals, checkins, notes, achievements: {}, challenges: {} };
+  // A budget 10 days into its month: 300 until payday in 20 days (10 a day), mostly on track.
+  // Amounts are in thousandths (see budget.js).
+  const spent = [8750, 13000, 4500, 10000, 0, 15250, 6250, 8250, 11750, 5000];
+  const spends = {};
+  spent.forEach((amount, i) => {
+    const day = addDays(today, i - 10);
+    if (amount) spends[day] = [{ id: `demo-s${i}`, amount, note: ['Groceries', 'Dinner out', 'Coffee', 'Fuel'][i % 4], at: at(day, 13) }];
+  });
+  spends[today] = [{ id: 'demo-today', amount: 1250, note: 'Coffee', at: new Date().toISOString() }];
+  const budget = {
+    currency: guessCurrency(),
+    periods: [{ id: 'demo-budget', start: addDays(today, -10), until: addDays(today, 19), amount: 300000, leftoverIn: 0, mode: 'payday', payday: addDays(today, 20) }],
+    spends,
+    off: false,
+  };
+  return { profile, goals, checkins, notes, achievements: {}, challenges: {}, budget };
 }

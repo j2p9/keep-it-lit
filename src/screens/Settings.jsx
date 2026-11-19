@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { VAPID_PUBLIC_KEY } from '../config.js';
 import { colorOf } from '../lib/colors.js';
-import { formatTime, formatWhen } from '../lib/dates.js';
+import { budgetDay, formatMoney } from '../lib/budget.js';
+import { formatDay, formatTime, formatWhen } from '../lib/dates.js';
 import { installPrompt, promptInstall } from '../lib/install.js';
 import { isIOS, isStandalone, deviceTimezone } from '../lib/platform.js';
 import { enablePush, hasSubscription, permission, pushSupported, sendTestPush } from '../lib/push.js';
@@ -10,6 +11,7 @@ import { scheduleLabel } from '../lib/schedule.js';
 import {
   archivedGoals,
   backupState,
+  budget,
   currentGoals,
   deleteAccount,
   deleteGoal,
@@ -71,6 +73,7 @@ export function Settings({ onClose }) {
   const p = profile.value || {};
   const s = settings.value;
   const rule = restRule.value;
+  const budgetInfo = budgetDay(budget.value, today.value);
   const demo = session.value.demo;
   const email = session.value.user?.email;
   const [push, setPush] = useState('checking');
@@ -262,6 +265,20 @@ export function Settings({ onClose }) {
             <div class="item-sub">
               {plural(currentGoals.value.length, 'goal')}
               {archivedGoals.value.length ? ` · ${archivedGoals.value.length} archived` : ''}
+            </div>
+          </div>
+          <IconNext size={18} class="chev" />
+        </button>
+        <button class="item" onClick={() => openOverlay(budgetInfo ? 'budget' : 'budgetSetup', budgetInfo ? { day: today.peek() } : {})}>
+          <span style="font-size:22px" aria-hidden="true">
+            💰
+          </span>
+          <div class="item-main">
+            <div class="item-label">Daily budget</div>
+            <div class="item-sub">
+              {budgetInfo
+                ? `${formatMoney(Math.round(budgetInfo.daily), budget.value.currency || 'USD')} a day · until ${formatDay(budgetInfo.period.until, { month: 'short', day: 'numeric' })}`
+                : 'Split your money until payday into an amount per day'}
             </div>
           </div>
           <IconNext size={18} class="chev" />

@@ -13,6 +13,7 @@ import { buildStreakRows } from './cloudstreaks.js';
 import { healthCount, healthUpdates, toCount, unitFor } from './healthMetrics.js';
 import { localCopyComplete } from './migrate.js';
 import { planRest, REST_DEFAULTS } from './rest.js';
+import { EMPTY_BUDGET, lastDayFor, periodOn } from './budget.js';
 import * as vault from './backup.js';
 import * as healthApi from './health.js';
 import { readJSON, readString, removeKey, writeJSON, writeString } from './local.js';
@@ -46,6 +47,8 @@ export const challenges = signal({});
 export const health = signal({});
 /** Weekly goals marked for a whole week: { 'goalId|weekStart': 'sick' | 'rest' }. */
 export const weekMarks = signal({});
+/** Daily budget (see budget.js): { currency, periods, spends: { day: [{ id, amount, note, at }] }, off }. */
+export const budget = signal(EMPTY_BUDGET);
 export const ready = signal(false);
 /** True once we hold the server's profile (or a local copy), so awards aren't re-earned on a fresh device. */
 export const synced = signal(false);
@@ -178,6 +181,7 @@ const snapshotOf = () => ({
   challenges: challenges.peek(),
   health: health.peek(),
   weekMarks: weekMarks.peek(),
+  budget: budget.peek(),
 });
 
 /** Writes everything to this phone. Returns false if storage refused it (full or disabled). */
@@ -189,7 +193,17 @@ function saveNow() {
 let saveTimer = null;
 effect(() => {
   // Touch every piece of user data so any change schedules a save.
-  void [profile.value, goals.value, checkins.value, notes.value, achievements.value, challenges.value, health.value, weekMarks.value];
+  void [
+    profile.value,
+    goals.value,
+    checkins.value,
+    notes.value,
+    achievements.value,
+    challenges.value,
+    health.value,
+    weekMarks.value,
+    budget.value,
+  ];
   if (!ready.value) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 250);
@@ -242,6 +256,7 @@ function loadLocal(id) {
     challenges.value = snap?.challenges || {};
     health.value = snap?.health || {};
     weekMarks.value = snap?.weekMarks || {};
+    budget.value = snap?.budget || EMPTY_BUDGET;
     // Changes still waiting in the outbox are newer than the snapshot.
     for (const e of queued) mergeRows(e.table, [e.row], { me: id });
     synced.value = Boolean(snap);
@@ -266,6 +281,7 @@ function resetData() {
     challenges.value = {};
     health.value = {};
     weekMarks.value = {};
+    budget.value = EMPTY_BUDGET;
     deviceReady.value = false;
     setupStep.value = null;
     restoreInfo.value = null;
@@ -386,6 +402,7 @@ function startDemo(mode) {
     challenges.value = snap.challenges || {};
     health.value = snap.health || {};
     weekMarks.value = snap.weekMarks || {};
+    budget.value = snap.budget || EMPTY_BUDGET;
     synced.value = true;
     deviceReady.value = true;
     ready.value = true;
@@ -754,6 +771,73 @@ export function setWeekMark(goal, wk, mark) {
   weekMarks.value = next;
 }
 
+// ---------------------------------------------------------------- daily budget
+
+/** Ends the running period yesterday (or drops it if it only started today). */
+function closePeriod(periods, current, t) {
+  if (!current) return periods;
+  return current.start === t ? periods.filter((p) => p.id !== current.id) : periods.map((p) => (p.id === current.id ? { ...p, until: addDays(t, -1) } : p));
+}
+
+/**
+ * Sets the money that has to last until payday or the month's end (amounts in minor units).
+ * Editing keeps the running period's start, so its daily amount is recalculated from there;
+ * `startNew` (payday came early) ends it yesterday and starts a new one today.
+ */
+export function setBudgetPeriod({ amount, leftover = 0, mode, payday, currency, startNew = false }) {
+  const b = budget.peek();
+  const t = today.peek();
+  const current = periodOn(b, t);
+  let periods = b.periods;
+  if (current && !startNew) {
+    periods = periods.map((p) =>
+      p.id === current.id
+        ? { ...p, amount: amount + (p.leftoverIn || 0), mode, payday: mode === 'payday' ? payday : null, until: lastDayFor({ mode, payday }, p.start) }
+        : p,
+    );
+  } else {
+    periods = [
+      ...closePeriod(periods, current, t),
+      { id: newId(), start: t, until: lastDayFor({ mode, payday }, t), amount: amount + leftover, leftoverIn: leftover, mode, payday: mode === 'payday' ? payday : null },
+    ];
+  }
+  budget.value = { ...b, currency, periods, off: false };
+}
+
+/** Logs money spent on a day (minor units). */
+export function addSpend(day, amount, note = '') {
+  const b = budget.peek();
+  const entry = { id: newId(), amount, note: note.slice(0, 40), at: nowIso() };
+  budget.value = { ...b, spends: { ...b.spends, [day]: [...(b.spends[day] || []), entry] } };
+  return entry;
+}
+
+/** Removes a logged purchase and returns it (for Undo). */
+export function removeSpend(day, id) {
+  const b = budget.peek();
+  const list = b.spends[day] || [];
+  const gone = list.find((s) => s.id === id);
+  const rest = list.filter((s) => s.id !== id);
+  const spends = { ...b.spends };
+  if (rest.length) spends[day] = rest;
+  else delete spends[day];
+  budget.value = { ...b, spends };
+  return gone;
+}
+
+/** Puts a removed purchase back. */
+export function restoreSpend(day, entry) {
+  const b = budget.peek();
+  budget.value = { ...b, spends: { ...b.spends, [day]: [...(b.spends[day] || []), entry] } };
+}
+
+/** Stops budgeting from today. Earlier periods and purchases are kept. */
+export function endBudget() {
+  const b = budget.peek();
+  const t = today.peek();
+  budget.value = { ...b, periods: closePeriod(b.periods, periodOn(b, t), t), off: true };
+}
+
 export const archiveGoal = (g) => saveGoal({ id: g.id, archived_on: today.peek() });
 export const unarchiveGoal = (g) => saveGoal({ id: g.id, archived_on: null });
 export const deleteGoal = (g) => saveGoal({ id: g.id, deleted_at: nowIso() });
@@ -806,6 +890,7 @@ export function exportData() {
     challenges: Object.values(challenges.peek()),
     health: health.peek(),
     week_marks: weekMarks.peek(),
+    budget: budget.peek(),
   };
 }
 
@@ -855,6 +940,18 @@ export function importData(data) {
       wm[`${mapId(goalId)}|${wk}`] = mark;
     }
     weekMarks.value = wm;
+    // Budget periods and purchases are merged by id, so importing twice adds nothing twice.
+    if (data.budget) {
+      const cur = budget.peek();
+      const periods = [...cur.periods];
+      for (const p of data.budget.periods || []) if (!periods.some((x) => x.id === p.id)) periods.push(p);
+      const spends = { ...cur.spends };
+      for (const [day, list] of Object.entries(data.budget.spends || {})) {
+        const have = spends[day] || [];
+        spends[day] = [...have, ...list.filter((s) => !have.some((x) => x.id === s.id))];
+      }
+      budget.value = { ...cur, currency: cur.currency || data.budget.currency, periods, spends, off: cur.periods.length ? cur.off : data.budget.off };
+    }
   });
   return { goals: data.goals.length, checkins: (data.checkins || []).length };
 }
@@ -967,7 +1064,7 @@ export async function disableBackup() {
 // Any change to the data marks the backup out of date; it uploads 2 minutes later, or when the
 // app goes to the background.
 effect(() => {
-  void [goals.value, checkins.value, notes.value, achievements.value, challenges.value, health.value, weekMarks.value];
+  void [goals.value, checkins.value, notes.value, achievements.value, challenges.value, health.value, weekMarks.value, budget.value];
   if (!ready.peek() || !deviceReady.peek() || setupStep.peek()) return;
   const id = uid();
   if (backupWatchFor !== id) {
@@ -1181,7 +1278,10 @@ if (demoRequested) {
         restoreInfo.value = { backup: await demoCloud.info(), streaks: rows };
       }
       if (newPhone) {
-        batch(() => [goals, checkins, notes, achievements, challenges, health, weekMarks].forEach((s) => (s.value = {})));
+        batch(() => {
+          [goals, checkins, notes, achievements, challenges, health, weekMarks].forEach((s) => (s.value = {}));
+          budget.value = EMPTY_BUDGET;
+        });
       }
       setupStep.value = step;
     },

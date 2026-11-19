@@ -4,10 +4,25 @@ import { addDays, formatDay } from '../lib/dates.js';
 import { isDueOn } from '../lib/schedule.js';
 import { daySummary } from '../lib/stats.js';
 import { nextMilestone } from '../lib/streaks.js';
-import { allGoals, awardState, clock, currentChallenge, currentGoals, lookup, profile, restPlan, restRule, streaks, today } from '../lib/store.js';
+import { budgetDay, formatMoney } from '../lib/budget.js';
+import {
+  allGoals,
+  awardState,
+  budget,
+  clock,
+  currentChallenge,
+  currentGoals,
+  lookup,
+  profile,
+  restPlan,
+  restRule,
+  streaks,
+  today,
+} from '../lib/store.js';
 import { closeWelcome, welcomeLeaving } from '../lib/ui.js';
 import { WeekStrip } from '../components/chrome.jsx';
 import { HealthCard } from '../components/HealthCard.jsx';
+import { daysLeftLabel } from '../components/BudgetCard.jsx';
 
 // Original encouragement, one per day.
 const LINES = [
@@ -75,6 +90,7 @@ export function Welcome() {
   const monthPerfect = awardState.value.stats.monthPerfect;
   const rule = restRule.value;
   const rest = restPlan.value;
+  const budgetInfo = budgetDay(budget.value, t);
   const restNext = rule.on && rest.bank < rule.max ? rest.nextIn : null;
   const dueToday = current.filter((g) => isDueOn(g, t) || g.schedule === 'weekly');
   const line = LINES[Number(t.replace(/-/g, '')) % LINES.length];
@@ -214,6 +230,24 @@ export function Welcome() {
             {dueToday.length ? emojis(dueToday) : '🌿'}
           </div>
         </section>
+
+        {budgetInfo && (
+          <section class="card">
+            <div class="card-title">
+              <span aria-hidden="true">💰</span>Budget today<span class="aside">{daysLeftLabel(budgetInfo)}</span>
+            </div>
+            <div class="budget-left">
+              {Math.round(budgetInfo.left) < 0
+                ? `${formatMoney(-Math.round(budgetInfo.left), budget.value.currency || 'USD')} over`
+                : `${formatMoney(Math.round(budgetInfo.left), budget.value.currency || 'USD')} to spend`}
+            </div>
+            {Math.round(budgetInfo.carried) > 0 && (
+              <div class="muted" style="font-size:14px;margin-top:4px">
+                Includes {formatMoney(Math.round(budgetInfo.carried), budget.value.currency || 'USD')} you didn’t spend before.
+              </div>
+            )}
+          </section>
+        )}
 
         <p class="quote">“{line}”</p>
         <button class="btn btn-primary btn-block" onClick={closeWelcome}>

@@ -29,6 +29,11 @@ Press and hold the app icon for shortcuts to Today, Calendar, Progress and Award
 - **Streaks per goal:** 🔥 day count on every goal. ⏳ appears in the last 4 hours if a streak is about to end, and 💯 from 100 days on.
 - **Rest days and sick days:** perfect days bank 🛌 rest days. You choose how many you earn, how often, and the most you keep. A missed day uses one automatically, covering the whole day; for a weekly goal, a missed week uses one. You can also take a rest day on purpose. 🤒 Sick days and sick weeks are free and pause your streaks. Streak freezes (❄️, earned every 7 days in a row) are the backup when you're out of rest days.
 - **Night owls:** with "My day ends at" set after midnight, Today offers to start the new day early.
+- **Daily budget:** enter the money you have until payday (or the end of the month), and it's split into an amount per day.
+  - Today shows what's left to spend, and **+ Spent** logs a purchase.
+  - What you don't spend carries over to the next day; overspending comes off it.
+  - At payday you start the next budget and can bring the leftover along.
+  - Amounts are exact to 3 decimals (e.g. KWD fils). The currency is picked from your phone's time zone and can be changed.
 - **Daily welcome:** the first open each day shows yesterday's recap, your streaks, the week at a glance, the next milestone and today's plan.
 - **Calendar:** a month of progress rings. Filter by goal to see its streak chain, and tap any day to fill it in, set a mood or write a note. Weekly goals get a week-by-week calendar: the days you did it, and each week's result (hit, rest week, sick, freeze or missed).
 - **Progress:** Week / Month / Year completion charts, Highlights, habit strength and a 26-week heatmap per goal.

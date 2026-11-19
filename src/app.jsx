@@ -8,6 +8,7 @@ import { GradientDefs } from './components/Ring.jsx';
 import { Auth, Install, SetPassword } from './screens/Auth.jsx';
 import { AwardSheet, Awards } from './screens/Awards.jsx';
 import { BackupSheet } from './screens/Backup.jsx';
+import { BudgetSetup, BudgetSheet, SpendSheet } from './screens/Budget.jsx';
 import { Calendar } from './screens/Calendar.jsx';
 import { DayOffSheet, DaySheet, GoalActions } from './screens/DaySheets.jsx';
 import { GoalEditor, Templates } from './screens/GoalEditor.jsx';
@@ -22,6 +23,8 @@ import { Welcome } from './screens/Welcome.jsx';
 const OVERLAYS = {
   awardDetail: AwardSheet,
   backup: BackupSheet,
+  budget: BudgetSheet,
+  budgetSetup: BudgetSetup,
   changePassword: ChangePassword,
   dayOff: DayOffSheet,
   daySheet: DaySheet,
@@ -31,6 +34,7 @@ const OVERLAYS = {
   healthSetup: HealthSetup,
   manageGoals: ManageGoals,
   settings: Settings,
+  spend: SpendSheet,
   templates: Templates,
 };
 

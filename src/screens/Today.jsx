@@ -24,6 +24,7 @@ import {
   today,
 } from '../lib/store.js';
 import { openOverlay, setUi, showToast, uiState, viewDay, welcomeOpen } from '../lib/ui.js';
+import { BudgetCard } from '../components/BudgetCard.jsx';
 import { DayStrip } from '../components/DayStrip.jsx';
 import { GoalRow } from '../components/GoalRow.jsx';
 import { HealthCard } from '../components/HealthCard.jsx';
@@ -69,6 +70,7 @@ export function Today() {
   const protectedCount = isToday ? goals.filter((g) => st.get(g.id)?.freezes > 0 && st.get(g.id)?.current > 0).length : 0;
   const left = sum.due - sum.done;
   const name = isToday ? 'Today' : dayName(day, t);
+  const hasGoals = isToday ? goals.length > 0 : allGoals.value.length > 0;
   const ws = settings.value.weekStart;
   const sameWeek = startOfWeek(day, ws) === startOfWeek(t, ws);
 
@@ -154,18 +156,22 @@ export function Today() {
         {isToday && <InstallBanner />}
         {allGoals.value.length > 0 && <DayStrip day={day} onPick={goTo} />}
 
-        {!(isToday ? goals.length : allGoals.value.length) ? (
-          <div class="card empty">
-            <div class="empty-emoji" aria-hidden="true">
-              🎯
+        {!hasGoals && (
+          <>
+            <div class="card empty">
+              <div class="empty-emoji" aria-hidden="true">
+                🎯
+              </div>
+              <h2>No goals yet</h2>
+              <p>Add one small thing you want to do every day. Your first streak starts today.</p>
+              <button class="btn btn-primary" onClick={() => openOverlay('templates')}>
+                Add your first goal
+              </button>
             </div>
-            <h2>No goals yet</h2>
-            <p>Add one small thing you want to do every day. Your first streak starts today.</p>
-            <button class="btn btn-primary" onClick={() => openOverlay('templates')}>
-              Add your first goal
-            </button>
-          </div>
-        ) : (
+            <BudgetCard day={day} />
+          </>
+        )}
+        {hasGoals && (
           <>
             <section class="card hero" aria-label={isToday ? 'Today’s progress' : `${name}’s progress`}>
               <Ring size={128} stroke={14} value={sum.fill ?? 0} glow label={`${sum.done} of ${sum.due} goals done`}>
@@ -201,6 +207,8 @@ export function Today() {
                 </div>
               </div>
             </section>
+
+            <BudgetCard day={day} />
 
             {TIME_SECTIONS.map(({ key, label, icon }) => {
               const list = due.filter((g) => g.time_of_day === key);

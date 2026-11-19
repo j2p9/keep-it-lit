@@ -1790,6 +1790,127 @@ button,
 .stack.later .goal:not(.done) {
   opacity: 0.8;
 }
+/* Daily budget */
+.screen .budget-card {
+  margin-top: 12px;
+}
+.budget-card {
+  display: flex;
+  flex-direction: column;
+}
+.budget-main {
+  width: 100%;
+  text-align: left;
+}
+.budget-left {
+  font-family: var(--font-round);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  animation: pop 0.3s var(--spring);
+}
+.budget-card.over .budget-left {
+  color: var(--danger);
+}
+.budget-bar {
+  display: block;
+  height: 8px;
+  margin: 10px 0 2px;
+  border-radius: 4px;
+  background: var(--ring-track);
+  overflow: hidden;
+}
+.budget-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--ok);
+  transition: width 0.4s var(--ease);
+}
+.budget-card.over .budget-bar i {
+  background: var(--danger);
+}
+.budget-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.budget-sub {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.35;
+}
+.budget-foot .btn {
+  flex: none;
+}
+.stat.over .v {
+  color: var(--danger);
+}
+.money-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.money-stats .stat {
+  padding: 12px 6px;
+}
+.money-stats .stat .v {
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.money-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.money-row .money-input {
+  flex: 1;
+}
+.money-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 64px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-input);
+}
+.money-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.money-input .cur {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.money-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-family: var(--font-round);
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.budget-preview {
+  margin: 16px 4px 14px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+.budget-preview b {
+  color: var(--text);
+}
 .rest-meter {
   display: flex;
   flex-direction: column;
